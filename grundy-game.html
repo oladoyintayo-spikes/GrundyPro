@@ -1,0 +1,4496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Grundy - Virtual Pet Game</title>
+
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#fbbf24">
+  <meta name="description" content="Adopt and care for your very own virtual pet!">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Grundy">
+  <link rel="apple-touch-icon" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <meta name="msapplication-TileColor" content="#1a1a2e">
+  <meta name="msapplication-TileImage" content="icons/icon-144.png">
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #1a1a2e; overflow: hidden; }
+    .game-container { width: 100vw; height: 100vh; max-width: 430px; margin: 0 auto; position: relative; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-20px) scale(1.1); } }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    @keyframes sparkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
+    @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+    @keyframes confetti { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+    .animate-bounce-custom { animation: bounce 0.6s ease-in-out; }
+    .animate-pulse-custom { animation: pulse 2s ease-in-out infinite; }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    .animate-sparkle { animation: sparkle 1.5s ease-in-out infinite; }
+    .animate-slideUp { animation: slideUp 0.3s ease-out; }
+    .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+    .animate-shake { animation: shake 0.3s ease-in-out; }
+    .confetti { position: fixed; animation: confetti 3s ease-out forwards; pointer-events: none; font-size: 24px; }
+    .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+    .pet-shadow { filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3)); }
+    .glow { box-shadow: 0 0 20px currentColor; }
+    /* Phase 5: Pet Animations */
+    @keyframes idle-bob { 0%, 100% { transform: translateY(0) scale(var(--weight-scale, 1)); } 50% { transform: translateY(-8px) scale(var(--weight-scale, 1)); } }
+    @keyframes happy-bounce { 0%, 100% { transform: translateY(0) scale(var(--weight-scale, 1)) rotate(0deg); } 25% { transform: translateY(-15px) scale(calc(var(--weight-scale, 1) * 1.05)) rotate(-5deg); } 75% { transform: translateY(-15px) scale(calc(var(--weight-scale, 1) * 1.05)) rotate(5deg); } }
+    @keyframes sad-droop { 0%, 100% { transform: translateY(0) scale(var(--weight-scale, 1)); } 50% { transform: translateY(5px) scale(calc(var(--weight-scale, 1) * 0.95)); } }
+    @keyframes hungry-wobble { 0%, 100% { transform: translateY(0) rotate(0deg) scale(var(--weight-scale, 1)); } 25% { transform: translateY(-3px) rotate(-3deg); } 75% { transform: translateY(-3px) rotate(3deg); } }
+    @keyframes sick-shake { 0%, 100% { transform: translateX(0) scale(var(--weight-scale, 1)); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); } 20%, 40%, 60%, 80% { transform: translateX(2px); } }
+    @keyframes eating { 0% { transform: scale(var(--weight-scale, 1)); } 15% { transform: scale(calc(var(--weight-scale, 1) * 1.15)); } 30% { transform: scale(var(--weight-scale, 1)); } 45% { transform: scale(calc(var(--weight-scale, 1) * 1.1)); } 60% { transform: scale(var(--weight-scale, 1)); } 100% { transform: scale(var(--weight-scale, 1)); } }
+    @keyframes sleeping { 0%, 100% { transform: translateY(0) scale(var(--weight-scale, 1)); opacity: 0.8; } 50% { transform: translateY(3px) scale(calc(var(--weight-scale, 1) * 0.98)); opacity: 0.6; } }
+    @keyframes slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .animate-idle { animation: idle-bob 2.5s ease-in-out infinite; }
+    .animate-happy { animation: happy-bounce 0.8s ease-in-out infinite; }
+    .animate-sad { animation: sad-droop 2s ease-in-out infinite; }
+    .animate-hungry { animation: hungry-wobble 0.5s ease-in-out infinite; }
+    .animate-sick { animation: sick-shake 0.8s ease-in-out infinite; }
+    .animate-eating { animation: eating 0.8s ease-out; }
+    .animate-sleeping { animation: sleeping 3s ease-in-out infinite; }
+    .animate-slide-down { animation: slide-down 0.3s ease-out; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+    // ============================================================
+    // GAME DATA
+    // ============================================================
+
+    const Affinity = { Loved: 'loved', Liked: 'liked', Neutral: 'neutral', Disliked: 'disliked' };
+    const Rarity = { Common: 'common', Uncommon: 'uncommon', Rare: 'rare', Epic: 'epic', Legendary: 'legendary' };
+    const GrowthStage = { Baby: 'baby', Youth: 'youth', Evolved: 'evolved' };
+    const AbilityType = {
+      BondBoost: 'bond_boost', NegativeResist: 'negative_resist', MoodStable: 'mood_stable',
+      XPBoost: 'xp_boost', CoinBoost: 'coin_boost', HungerSlow: 'hunger_slow',
+      GemFinder: 'gem_finder', LuckyFeeder: 'lucky_feeder'
+    };
+
+    const AFFINITY_MULTIPLIERS = { loved: 2.0, liked: 1.5, neutral: 1.0, disliked: 0.5 };
+    const MOOD_TIERS = [
+      { tier: 1, label: 'Grumpy', icon: '😤', min: 0, max: 19, mult: 0.5 },
+      { tier: 2, label: 'Moody', icon: '😕', min: 20, max: 39, mult: 0.75 },
+      { tier: 3, label: 'Neutral', icon: '😐', min: 40, max: 59, mult: 1.0 },
+      { tier: 4, label: 'Happy', icon: '😊', min: 60, max: 84, mult: 1.25 },
+      { tier: 5, label: 'Ecstatic', icon: '🤩', min: 85, max: 100, mult: 1.5 },
+    ];
+
+    const PETS = {
+      munchlet: {
+        id: 'munchlet', name: 'Munchlet', emoji: '🟡', color: '#fbbf24',
+        personality: 'Cheerful', likes: ['Sweet', 'Fruit'], dislikes: ['Spicy'],
+        hungerDecay: 'medium', special: '+10% bond growth',
+        ability: { type: AbilityType.BondBoost, name: 'Friendly Nature', desc: '+10% bond from interactions', mod: 1.1 },
+        gemCost: 0, isStarter: true
+      },
+      grib: {
+        id: 'grib', name: 'Grib', emoji: '🟢', color: '#4ade80',
+        personality: 'Mischievous', likes: ['Spicy', 'Exotic'], dislikes: ['Sweet'],
+        hungerDecay: 'fast', special: '-20% negative reactions',
+        ability: { type: AbilityType.NegativeResist, name: 'Tough Stomach', desc: '-20% negative mood effects', mod: 0.8 },
+        gemCost: 0, isStarter: true
+      },
+      plompo: {
+        id: 'plompo', name: 'Plompo', emoji: '🟣', color: '#a78bfa',
+        personality: 'Sleepy', likes: ['Sweet', 'Gooey'], dislikes: ['Crunchy'],
+        hungerDecay: 'slow', special: 'Slower mood decay',
+        ability: { type: AbilityType.MoodStable, name: 'Zen Master', desc: 'Mood decays 25% slower', mod: 0.75 },
+        gemCost: 0, isStarter: true
+      },
+      fizz: {
+        id: 'fizz', name: 'Fizz', emoji: '🔵', color: '#38bdf8',
+        personality: 'Bubbly', likes: ['Sweet', 'Fruit', 'Exotic'], dislikes: ['Spicy'],
+        hungerDecay: 'fast', special: '+15% XP from foods',
+        ability: { type: AbilityType.XPBoost, name: 'Quick Learner', desc: '+15% XP from feedings', mod: 1.15 },
+        gemCost: 50, isStarter: false
+      },
+      ember: {
+        id: 'ember', name: 'Ember', emoji: '🔴', color: '#f87171',
+        personality: 'Fiery', likes: ['Spicy', 'Exotic'], dislikes: ['Sweet', 'Fruit'],
+        hungerDecay: 'fast', special: '+20% coins from activities',
+        ability: { type: AbilityType.CoinBoost, name: 'Treasure Hunter', desc: '+20% coins earned', mod: 1.2 },
+        gemCost: 75, isStarter: false
+      },
+      chomper: {
+        id: 'chomper', name: 'Chomper', emoji: '🟤', color: '#a3a3a3',
+        personality: 'Hungry', likes: ['Crunchy', 'Savory'], dislikes: ['Gooey'],
+        hungerDecay: 'slow', special: '-30% hunger decay',
+        ability: { type: AbilityType.HungerSlow, name: 'Efficient Digestion', desc: '-30% hunger decay', mod: 0.7 },
+        gemCost: 100, isStarter: false
+      },
+      whisp: {
+        id: 'whisp', name: 'Whisp', emoji: '⚪', color: '#e2e8f0',
+        personality: 'Mysterious', likes: ['Exotic', 'Sweet'], dislikes: ['Savory'],
+        hungerDecay: 'medium', special: '10% chance for bonus gems',
+        ability: { type: AbilityType.GemFinder, name: 'Gem Sense', desc: '10% chance for gems when fed', mod: 0.1 },
+        gemCost: 150, isStarter: false
+      },
+      luxe: {
+        id: 'luxe', name: 'Luxe', emoji: '🌟', color: '#fcd34d',
+        personality: 'Glamorous', likes: ['Exotic', 'Sweet', 'Fruit'], dislikes: ['Common'],
+        hungerDecay: 'medium', special: '2x XP from loved foods',
+        ability: { type: AbilityType.LuckyFeeder, name: 'Golden Touch', desc: '2x XP from loved foods', mod: 2.0 },
+        gemCost: 200, isStarter: false
+      },
+    };
+
+    const FOODS = {
+      apple: { id: 'apple', name: 'Apple', emoji: '🍎', rarity: Rarity.Common, hunger: 12, mood: 1, xp: 2, cost: 5,
+        affinities: { munchlet: 'liked', grib: 'neutral', plompo: 'neutral', fizz: 'liked', ember: 'disliked', chomper: 'liked', whisp: 'neutral', luxe: 'neutral' }},
+      banana: { id: 'banana', name: 'Banana', emoji: '🍌', rarity: Rarity.Common, hunger: 10, mood: 1, xp: 2, cost: 5,
+        affinities: { munchlet: 'loved', grib: 'neutral', plompo: 'liked', fizz: 'loved', ember: 'disliked', chomper: 'neutral', whisp: 'liked', luxe: 'liked' }},
+      carrot: { id: 'carrot', name: 'Carrot', emoji: '🥕', rarity: Rarity.Common, hunger: 8, mood: 0, xp: 1, cost: 5,
+        affinities: { munchlet: 'neutral', grib: 'liked', plompo: 'neutral', fizz: 'neutral', ember: 'neutral', chomper: 'loved', whisp: 'disliked', luxe: 'disliked' }},
+      cookie: { id: 'cookie', name: 'Cookie', emoji: '🍪', rarity: Rarity.Uncommon, hunger: 15, mood: 2, xp: 4, cost: 15,
+        affinities: { munchlet: 'loved', grib: 'disliked', plompo: 'loved', fizz: 'liked', ember: 'disliked', chomper: 'liked', whisp: 'liked', luxe: 'loved' }},
+      grapes: { id: 'grapes', name: 'Grapes', emoji: '🍇', rarity: Rarity.Uncommon, hunger: 14, mood: 1, xp: 3, cost: 15,
+        affinities: { munchlet: 'liked', grib: 'liked', plompo: 'liked', fizz: 'loved', ember: 'neutral', chomper: 'neutral', whisp: 'liked', luxe: 'liked' }},
+      spicy_taco: { id: 'spicy_taco', name: 'Spicy Taco', emoji: '🌮', rarity: Rarity.Rare, hunger: 20, mood: 2, xp: 6, cost: 25,
+        affinities: { munchlet: 'disliked', grib: 'loved', plompo: 'disliked', fizz: 'disliked', ember: 'loved', chomper: 'liked', whisp: 'neutral', luxe: 'neutral' }},
+      hot_pepper: { id: 'hot_pepper', name: 'Hot Pepper', emoji: '🌶️', rarity: Rarity.Rare, hunger: 18, mood: -1, xp: 5, cost: 25,
+        affinities: { munchlet: 'disliked', grib: 'loved', plompo: 'disliked', fizz: 'disliked', ember: 'loved', chomper: 'liked', whisp: 'disliked', luxe: 'disliked' }},
+      birthday_cake: { id: 'birthday_cake', name: 'Birthday Cake', emoji: '🎂', rarity: Rarity.Epic, hunger: 25, mood: 3, xp: 10, cost: 50,
+        affinities: { munchlet: 'loved', grib: 'neutral', plompo: 'loved', fizz: 'loved', ember: 'neutral', chomper: 'liked', whisp: 'loved', luxe: 'loved' }},
+      dream_treat: { id: 'dream_treat', name: 'Dream Treat', emoji: '🌙', rarity: Rarity.Legendary, hunger: 30, mood: 5, xp: 15, cost: 100, gemCost: 5,
+        affinities: { munchlet: 'loved', grib: 'liked', plompo: 'loved', fizz: 'loved', ember: 'liked', chomper: 'liked', whisp: 'loved', luxe: 'loved' }},
+      golden_feast: { id: 'golden_feast', name: 'Golden Feast', emoji: '👑', rarity: Rarity.Legendary, hunger: 50, mood: 10, xp: 25, cost: 200, gemCost: 10,
+        affinities: { munchlet: 'loved', grib: 'loved', plompo: 'loved', fizz: 'loved', ember: 'loved', chomper: 'loved', whisp: 'loved', luxe: 'loved' }},
+    };
+
+    const RARITY_COLORS = { common: '#9ca3af', uncommon: '#4ade80', rare: '#60a5fa', epic: '#a78bfa', legendary: '#fbbf24' };
+
+    const STORY_SCREENS = [
+      { title: 'A Magical Discovery', text: 'One day, while exploring the Whimsy Woods, you stumbled upon something extraordinary...', emoji: '🌲' },
+      { title: 'A Tiny Creature', text: 'A small, adorable creature looked up at you with big, hopeful eyes. It seemed lost and hungry.', emoji: '👀' },
+      { title: 'A New Friend', text: 'You decided to take the little one home. With love and care, you knew you could help it grow strong!', emoji: '💕' },
+    ];
+
+    const TUTORIAL_STEPS = [
+      { id: 'welcome', title: 'Welcome!', message: 'Your new pet is hungry! Let\'s learn how to care for them.', action: 'next' },
+      { id: 'food', title: 'Feeding', message: 'Tap a food to feed your pet. Different pets like different foods!', action: 'feed' },
+      { id: 'reactions', title: 'Reactions', message: 'Watch for reactions! Hearts mean they love it!', action: 'next' },
+      { id: 'stats', title: 'Stats', message: 'Keep hunger and mood high for bonus XP!', action: 'next' },
+      { id: 'shop', title: 'Shop', message: 'Buy more food with coins. Gems unlock new pets!', action: 'next' },
+      { id: 'done', title: 'Ready!', message: 'Have fun caring for your new friend!', action: 'finish' },
+    ];
+
+    // ============================================================
+    // PHASE 1: HYBRID MODE SYSTEM (WEB-036, 037, 038, 051)
+    // ============================================================
+
+    // Game Mode Configuration
+    const GameMode = { Casual: 'casual', Classic: 'classic' };
+
+    const MODE_CONFIG = {
+      casual: {
+        name: 'Casual Mode',
+        description: 'Relaxed gameplay with no permanent consequences',
+        icon: '🌈',
+        petCanDie: false,
+        petCanGetSick: false,
+        careMistakesTracked: false,
+        hungerDecayRate: 0.5,
+        moodDecayRate: 0.5,
+        poopFrequency: 120,
+        sicknessChance: 0,
+        evolutionBranches: false,
+        feedingLimitEnabled: false
+      },
+      classic: {
+        name: 'Classic Mode',
+        description: 'Full Tamagotchi experience with real stakes',
+        icon: '💀',
+        petCanDie: true,
+        petCanGetSick: true,
+        careMistakesTracked: true,
+        hungerDecayRate: 1.0,
+        moodDecayRate: 1.0,
+        poopFrequency: 60,
+        sicknessChance: 0.15,
+        evolutionBranches: true,
+        feedingLimitEnabled: true
+      }
+    };
+
+    // Happiness System (WEB-037)
+    const HAPPINESS_TIERS = [
+      { tier: 1, label: 'Miserable', icon: '😢', min: 0, max: 20, xpMult: 0.7, coinMult: 0.7 },
+      { tier: 2, label: 'Unhappy', icon: '😔', min: 21, max: 40, xpMult: 0.85, coinMult: 0.85 },
+      { tier: 3, label: 'Content', icon: '😐', min: 41, max: 60, xpMult: 1.0, coinMult: 1.0 },
+      { tier: 4, label: 'Happy', icon: '😊', min: 61, max: 80, xpMult: 1.1, coinMult: 1.1 },
+      { tier: 5, label: 'Joyful', icon: '🥰', min: 81, max: 100, xpMult: 1.25, coinMult: 1.25 },
+    ];
+
+    const getHappinessTier = (happiness) =>
+      HAPPINESS_TIERS.find(t => happiness >= t.min && happiness <= t.max) || HAPPINESS_TIERS[2];
+
+    // Weight System (WEB-038)
+    const WEIGHT_STATUS = {
+      underweight: { min: 50, max: 69, label: 'Underweight', icon: '🦴', moodMod: -10, sickRisk: 1.3 },
+      slim: { min: 70, max: 89, label: 'Slim', icon: '🏃', moodMod: 5, sickRisk: 1.0 },
+      ideal: { min: 90, max: 110, label: 'Ideal', icon: '💪', moodMod: 10, sickRisk: 0.8 },
+      chubby: { min: 111, max: 130, label: 'Chubby', icon: '🐷', moodMod: 5, sickRisk: 1.1 },
+      overweight: { min: 131, max: 150, label: 'Overweight', icon: '🎈', moodMod: -10, sickRisk: 1.4 }
+    };
+
+    const getWeightStatus = (weight) => {
+      if (weight < 70) return WEIGHT_STATUS.underweight;
+      if (weight < 90) return WEIGHT_STATUS.slim;
+      if (weight <= 110) return WEIGHT_STATUS.ideal;
+      if (weight <= 130) return WEIGHT_STATUS.chubby;
+      return WEIGHT_STATUS.overweight;
+    };
+
+    // Stomach System (WEB-051)
+    const STOMACH_CONFIG = {
+      baseCapacity: 50,
+      capacityPerLevel: 5,
+      digestRatePerHour: 10,
+      overfeedThreshold: 0.9,
+      overfeedMoodPenalty: -15,
+      overfeedSickChance: 0.2
+    };
+
+    const getStomachCapacity = (level) => STOMACH_CONFIG.baseCapacity + (level * STOMACH_CONFIG.capacityPerLevel);
+
+    const getStomachStatus = (current, capacity) => {
+      const pct = current / capacity;
+      if (pct < 0.2) return { label: 'Hungry!', color: '#f87171', icon: '😋' };
+      if (pct < 0.6) return { label: 'Satisfied', color: '#4ade80', icon: '😊' };
+      if (pct < 0.9) return { label: 'Full', color: '#60a5fa', icon: '😌' };
+      return { label: 'Too full!', color: '#fbbf24', icon: '🤢' };
+    };
+
+    // ============================================================
+    // PHASE 2: MAINTENANCE LOOP (WEB-039, 044, 045, 048)
+    // ============================================================
+
+    // Poop System (WEB-039)
+    const POOP_CONFIG = {
+      maxBeforePenalty: 3,
+      moodPenaltyPerPoop: -5,
+      happinessPenaltyPerPoop: -3,
+      sickChanceWithPoop: 0.1,  // 10% per poop over max
+      getInterval: (mode) => mode === 'classic' ? 60 : 120  // minutes
+    };
+
+    const getPoopStatus = (count) => {
+      if (count === 0) return { label: 'Clean!', color: '#4ade80', icon: '✨' };
+      if (count <= 2) return { label: 'A bit messy', color: '#fbbf24', icon: '💩' };
+      return { label: 'Very dirty!', color: '#f87171', icon: '💩💩💩' };
+    };
+
+    // Shop Categories (WEB-048)
+    const SHOP_CATEGORIES = ['meals', 'snacks', 'treats', 'medicine'];
+
+    const getShopCategory = (food) => {
+      if (food.type === FoodType.Medicine) return 'medicine';
+      if (food.type === FoodType.Treat) return 'treats';
+      if (food.type === FoodType.Snack) return 'snacks';
+      return 'meals';
+    };
+
+    // Daily Events (WEB-044)
+    const DAILY_EVENTS = [
+      { id: 'double_xp', name: 'Double XP Day', icon: '⭐', description: '2× XP from all feedings!', xpMultiplier: 2 },
+      { id: 'sale', name: 'Shop Sale', icon: '💰', description: '20% off all shop items!', discount: 0.2 },
+      { id: 'bonus_coins', name: 'Coin Rush', icon: '🪙', description: '50% more coins earned!', coinMultiplier: 1.5 },
+      { id: 'happy_day', name: 'Happy Day', icon: '😊', description: 'Pets are extra happy today!', moodBoost: 10 },
+      { id: 'feast_day', name: 'Feast Day', icon: '🍽️', description: 'All foods restore extra hunger!', hungerBoost: 5 }
+    ];
+
+    const getRandomEvent = () => DAILY_EVENTS[Math.floor(Math.random() * DAILY_EVENTS.length)];
+
+    // Login Streaks (WEB-045)
+    const STREAK_REWARDS = {
+      1: { coins: 10, label: 'Day 1', message: 'Welcome back!' },
+      2: { coins: 15, label: 'Day 2', message: 'Keep it up!' },
+      3: { coins: 25, gems: 1, label: 'Day 3', message: 'Nice streak!' },
+      5: { coins: 40, gems: 2, label: 'Day 5', message: 'Halfway to weekly!' },
+      7: { coins: 50, gems: 5, item: 'cookie', label: 'Week 1', message: '🎉 Weekly bonus!' },
+      14: { coins: 100, gems: 10, item: 'birthday_cake', label: 'Week 2', message: '🎂 Amazing dedication!' },
+      30: { coins: 200, gems: 25, item: 'birthday_cake', label: 'Month 1', message: '🏆 Monthly champion!' }
+    };
+
+    const getStreakReward = (streak) => {
+      // Find highest matching tier
+      const tiers = Object.keys(STREAK_REWARDS).map(Number).sort((a, b) => b - a);
+      for (const tier of tiers) {
+        if (streak >= tier) return { tier, ...STREAK_REWARDS[tier] };
+      }
+      return STREAK_REWARDS[1];
+    };
+
+    const isNewDay = (lastLogin) => {
+      if (!lastLogin) return true;
+      const last = new Date(lastLogin);
+      const now = new Date();
+      return last.toDateString() !== now.toDateString();
+    };
+
+    const isConsecutiveDay = (lastLogin) => {
+      if (!lastLogin) return false;
+      const last = new Date(lastLogin);
+      const now = new Date();
+      const diffDays = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+      return diffDays === 1;
+    };
+
+    // ============================================================
+    // PHASE 3: CLASSIC STAKES (WEB-040-043, 049)
+    // ============================================================
+
+    // Sickness System (WEB-040)
+    const SICKNESS_CONFIG = {
+      baseChancePerNeglect: 0.15,  // 15% per neglect event
+      symptoms: {
+        moodPenalty: -20,
+        xpPenalty: 0.5,  // 50% XP
+        happinessPenalty: -15
+      },
+      triggers: [
+        { type: 'hunger_low', threshold: 20 },
+        { type: 'cleanliness_low', threshold: 40 },
+        { type: 'overfeed', count: 3 },
+        { type: 'poop_excess', count: 4 }
+      ],
+      curedBy: ['vitamins'],
+      recoveryTime: 3600000  // 1 hour auto-recovery if treated
+    };
+
+    // Death System (WEB-041) - Classic Mode Only
+    const DEATH_CONFIG = {
+      enabled: (mode) => mode === 'classic',
+      mistakesBeforeRisk: 5,
+      deathChancePerMistake: 0.1,  // 10% per mistake over threshold
+      warningThreshold: 3,  // Show warning at 3 mistakes
+      causes: [
+        { type: 'starvation', condition: (pet) => pet.hunger <= 0 },
+        { type: 'sickness', condition: (pet) => pet.isSick && pet.sicknessTime > 86400000 },
+        { type: 'neglect', condition: (pet) => pet.careMistakes >= 10 }
+      ]
+    };
+
+    // Care Mistakes (WEB-042)
+    const CARE_MISTAKE_TYPES = {
+      hunger_critical: { weight: 1, label: 'Pet got very hungry' },
+      missed_poop: { weight: 1, label: 'Left poop too long' },
+      overfed: { weight: 1, label: 'Overfed pet' },
+      ignored_sickness: { weight: 2, label: 'Ignored sickness' },
+      low_happiness: { weight: 1, label: 'Pet was unhappy' }
+    };
+
+    // Evolution Branches (WEB-043)
+    const EVOLUTION_CONFIG = {
+      careScoreWeight: {
+        avgHappiness: 0.4,
+        careMistakes: 0.3,
+        feedingQuality: 0.3
+      },
+      thresholds: {
+        good: 70,    // 70+ = good evolution
+        neutral: 40,  // 40-69 = neutral evolution
+        bad: 0        // 0-39 = bad evolution
+      },
+      branches: {
+        baby: { good: 'youth_good', neutral: 'youth', bad: 'youth_bad' },
+        youth: { good: 'evolved_good', neutral: 'evolved', bad: 'evolved_bad' },
+        youth_good: { good: 'evolved_good', neutral: 'evolved', bad: 'evolved' },
+        youth_bad: { good: 'evolved', neutral: 'evolved_bad', bad: 'evolved_bad' }
+      }
+    };
+
+    const getCareScore = (petState) => {
+      const happiness = petState.happiness || 70;
+      const mistakes = petState.careMistakes || 0;
+      const mistakeScore = Math.max(0, 100 - (mistakes * 10));
+      return Math.round(happiness * 0.6 + mistakeScore * 0.4);
+    };
+
+    const getEvolutionBranch = (petState, gameMode) => {
+      if (gameMode !== 'classic') return 'good';  // Casual always gets good evolution
+      const score = getCareScore(petState);
+      if (score >= EVOLUTION_CONFIG.thresholds.good) return 'good';
+      if (score >= EVOLUTION_CONFIG.thresholds.neutral) return 'neutral';
+      return 'bad';
+    };
+
+    // Notifications (WEB-049)
+    const NOTIFICATION_TYPES = {
+      hunger_warning: { icon: '🍖', message: 'Your pet is getting hungry!', priority: 2 },
+      hunger_critical: { icon: '⚠️', message: 'Your pet is starving!', priority: 3 },
+      sick: { icon: '🤒', message: 'Your pet is sick! Give vitamins!', priority: 3 },
+      poop_warning: { icon: '💩', message: 'Time to clean up!', priority: 1 },
+      death_warning: { icon: '💀', message: 'Your pet is in danger!', priority: 4 },
+      evolution_ready: { icon: '🌟', message: 'Your pet is ready to evolve!', priority: 2 },
+      streak_reward: { icon: '🔥', message: 'Claim your streak reward!', priority: 1 }
+    };
+
+    // ============================================================
+    // PHASE 4: AUDIO SYSTEM (WEB-052-062)
+    // ============================================================
+
+    // AudioManager (WEB-052)
+    const AudioManager = {
+      ctx: null,
+      gainNodes: { master: null, sfx: null, music: null },
+      sounds: new Map(),
+      isUnlocked: false,
+      soundEnabled: true,
+      musicEnabled: true,
+      masterVolume: 0.7,
+      sfxVolume: 0.8,
+      musicVolume: 0.5,
+
+      async init() {
+        if (this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Create gain node hierarchy
+        this.gainNodes.master = this.ctx.createGain();
+        this.gainNodes.sfx = this.ctx.createGain();
+        this.gainNodes.music = this.ctx.createGain();
+
+        this.gainNodes.sfx.connect(this.gainNodes.master);
+        this.gainNodes.music.connect(this.gainNodes.master);
+        this.gainNodes.master.connect(this.ctx.destination);
+
+        this.setMasterVolume(this.masterVolume);
+        this.setSfxVolume(this.sfxVolume);
+
+        // Load saved preferences
+        try {
+          const saved = localStorage.getItem('grundy-audio');
+          if (saved) {
+            const prefs = JSON.parse(saved);
+            this.soundEnabled = prefs.soundEnabled ?? true;
+            this.musicEnabled = prefs.musicEnabled ?? true;
+            this.masterVolume = prefs.masterVolume ?? 0.7;
+          }
+        } catch (e) {}
+
+        // Synthesize sounds
+        await this.synthesizeSounds();
+      },
+
+      async synthesizeSounds() {
+        if (!this.ctx) return;
+        const sr = this.ctx.sampleRate;
+
+        // Feed sound - happy chirp
+        this.sounds.set('feed', this.synthSound(sr, 0.3, (t) =>
+          (Math.sin(2 * Math.PI * 880 * t) * 0.3 + Math.sin(2 * Math.PI * 1320 * t) * 0.2) * Math.exp(-t * 10)
+        ));
+
+        // Coin sound - rising pitch
+        this.sounds.set('coin', this.synthSound(sr, 0.15, (t) =>
+          Math.sin(2 * Math.PI * (1000 + t * 2000) * t) * Math.exp(-t * 15) * 0.4
+        ));
+
+        // Level up - fanfare
+        this.sounds.set('levelUp', this.synthSound(sr, 1.0, (t) => {
+          const notes = [523, 659, 784, 1047];
+          const noteIndex = Math.floor(t * 4);
+          if (noteIndex >= notes.length) return 0;
+          const freq = notes[noteIndex];
+          const noteT = t - noteIndex * 0.25;
+          return Math.sin(2 * Math.PI * freq * noteT) * Math.exp(-noteT * 4) * 0.3;
+        }));
+
+        // Tap sound
+        this.sounds.set('tap', this.synthSound(sr, 0.08, (t) =>
+          Math.sin(2 * Math.PI * 600 * t) * Math.exp(-t * 30) * 0.3
+        ));
+
+        // Error sound
+        this.sounds.set('error', this.synthSound(sr, 0.2, (t) =>
+          Math.sin(2 * Math.PI * 200 * t) * Math.exp(-t * 8) * 0.4
+        ));
+
+        // Poop sound
+        this.sounds.set('poop', this.synthSound(sr, 0.2, (t) =>
+          Math.sin(2 * Math.PI * (150 - t * 100) * t) * Math.exp(-t * 5) * 0.3
+        ));
+
+        // Clean sound
+        this.sounds.set('clean', this.synthSound(sr, 0.25, (t) =>
+          (Math.sin(2 * Math.PI * 400 * t) * 0.2 + Math.sin(2 * Math.PI * 800 * t) * 0.2) * Math.exp(-t * 8)
+        ));
+
+        // Sick sound
+        this.sounds.set('sick', this.synthSound(sr, 0.4, (t) =>
+          Math.sin(2 * Math.PI * (300 + Math.sin(t * 10) * 50) * t) * Math.exp(-t * 3) * 0.3
+        ));
+      },
+
+      synthSound(sampleRate, duration, generator) {
+        const buffer = this.ctx.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < buffer.length; i++) {
+          const t = i / sampleRate;
+          data[i] = generator(t);
+        }
+        return buffer;
+      },
+
+      async unlock() {
+        if (this.isUnlocked) return true;
+        if (!this.ctx) await this.init();
+
+        try {
+          if (this.ctx.state === 'suspended') {
+            await this.ctx.resume();
+          }
+          // Play silent buffer to fully unlock
+          const buffer = this.ctx.createBuffer(1, 1, 22050);
+          const source = this.ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(this.ctx.destination);
+          source.start();
+          this.isUnlocked = true;
+          return true;
+        } catch (e) {
+          console.warn('Audio unlock failed:', e);
+          return false;
+        }
+      },
+
+      playSfx(id) {
+        if (!this.soundEnabled || !this.ctx || !this.isUnlocked) return;
+        const buffer = this.sounds.get(id);
+        if (!buffer) return;
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.gainNodes.sfx);
+        source.start();
+      },
+
+      setMasterVolume(vol) {
+        this.masterVolume = vol;
+        if (this.gainNodes.master) {
+          this.gainNodes.master.gain.value = vol;
+        }
+        this.savePrefs();
+      },
+
+      setSfxVolume(vol) {
+        this.sfxVolume = vol;
+        if (this.gainNodes.sfx) {
+          this.gainNodes.sfx.gain.value = vol;
+        }
+      },
+
+      toggleSound() {
+        this.soundEnabled = !this.soundEnabled;
+        this.savePrefs();
+        return this.soundEnabled;
+      },
+
+      toggleMusic() {
+        this.musicEnabled = !this.musicEnabled;
+        this.savePrefs();
+        return this.musicEnabled;
+      },
+
+      savePrefs() {
+        try {
+          localStorage.setItem('grundy-audio', JSON.stringify({
+            soundEnabled: this.soundEnabled,
+            musicEnabled: this.musicEnabled,
+            masterVolume: this.masterVolume
+          }));
+        } catch (e) {}
+      }
+    };
+
+    // VibrationManager (WEB-053)
+    const VibrationManager = {
+      enabled: true,
+      supportsVibration: typeof navigator !== 'undefined' && 'vibrate' in navigator,
+
+      init() {
+        try {
+          const saved = localStorage.getItem('grundy-vibration');
+          if (saved !== null) {
+            this.enabled = saved === 'true';
+          }
+        } catch (e) {}
+      },
+
+      vibrate(pattern) {
+        if (!this.enabled || !this.supportsVibration) return;
+        navigator.vibrate(pattern);
+      },
+
+      vibratePreset(preset) {
+        const patterns = {
+          tap: 10,
+          success: [10, 50, 10],
+          error: [100],
+          feed: [30],
+          levelUp: [50, 100, 50, 100, 100],
+          notification: [100, 50, 100]
+        };
+        this.vibrate(patterns[preset] || 10);
+      },
+
+      stop() {
+        if (this.supportsVibration) navigator.vibrate(0);
+      },
+
+      toggle() {
+        this.enabled = !this.enabled;
+        try {
+          localStorage.setItem('grundy-vibration', String(this.enabled));
+        } catch (e) {}
+        return this.enabled;
+      }
+    };
+
+    // iOS Audio Unlock (WEB-061)
+    const IOSAudioUnlock = {
+      needsUnlock: typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent),
+      isUnlocked: false,
+
+      attachUnlockListener() {
+        if (!this.needsUnlock || this.isUnlocked) return;
+
+        const handler = async () => {
+          if (await AudioManager.unlock()) {
+            this.isUnlocked = true;
+            document.removeEventListener('touchstart', handler);
+            document.removeEventListener('touchend', handler);
+            document.removeEventListener('click', handler);
+          }
+        };
+
+        document.addEventListener('touchstart', handler, { passive: true });
+        document.addEventListener('touchend', handler, { passive: true });
+        document.addEventListener('click', handler, { passive: true });
+      }
+    };
+
+    // Initialize audio on first interaction
+    if (typeof window !== 'undefined') {
+      window.addEventListener('click', async () => {
+        if (!AudioManager.ctx) {
+          await AudioManager.init();
+          await AudioManager.unlock();
+        }
+      }, { once: true });
+
+      VibrationManager.init();
+      IOSAudioUnlock.attachUnlockListener();
+    }
+
+    // Extended Foods with calories/sugar for weight system
+    const FoodType = { Meal: 'meal', Snack: 'snack', Treat: 'treat', Medicine: 'medicine' };
+
+    const EXTENDED_FOODS = {
+      ...FOODS,
+      // Add food properties to existing foods
+    };
+
+    // Add type, calories, sugar to all existing foods
+    Object.keys(EXTENDED_FOODS).forEach(id => {
+      const food = EXTENDED_FOODS[id];
+      if (!food.type) {
+        food.type = food.rarity === 'legendary' || food.rarity === 'epic' ? FoodType.Treat : FoodType.Meal;
+        food.calories = Math.round(food.hunger * 0.8);
+        food.sugarContent = food.mood > 2 ? Math.min(food.mood * 2, 10) : 0;
+        food.isHealthy = food.rarity === 'common' || food.rarity === 'uncommon';
+      }
+    });
+
+    // New snack and treat items
+    const NEW_FOODS = {
+      candy: {
+        id: 'candy', name: 'Candy', emoji: '🍬', rarity: Rarity.Uncommon,
+        type: FoodType.Treat, hunger: 5, mood: 8, xp: 1, cost: 10,
+        calories: 15, sugarContent: 10, isHealthy: false,
+        affinities: { munchlet: 'loved', grib: 'disliked', plompo: 'loved', fizz: 'loved', ember: 'neutral', chomper: 'neutral', whisp: 'liked', luxe: 'loved' }
+      },
+      chips: {
+        id: 'chips', name: 'Chips', emoji: '🍟', rarity: Rarity.Common,
+        type: FoodType.Snack, hunger: 8, mood: 5, xp: 1, cost: 8,
+        calories: 12, sugarContent: 2, isHealthy: false,
+        affinities: { munchlet: 'liked', grib: 'liked', plompo: 'neutral', fizz: 'neutral', ember: 'liked', chomper: 'loved', whisp: 'disliked', luxe: 'disliked' }
+      },
+      salad: {
+        id: 'salad', name: 'Salad', emoji: '🥗', rarity: Rarity.Uncommon,
+        type: FoodType.Meal, hunger: 15, mood: 2, xp: 3, cost: 12,
+        calories: 5, sugarContent: 0, isHealthy: true,
+        affinities: { munchlet: 'neutral', grib: 'liked', plompo: 'disliked', fizz: 'liked', ember: 'neutral', chomper: 'disliked', whisp: 'liked', luxe: 'liked' }
+      },
+      ice_cream: {
+        id: 'ice_cream', name: 'Ice Cream', emoji: '🍦', rarity: Rarity.Rare,
+        type: FoodType.Treat, hunger: 10, mood: 12, xp: 2, cost: 15,
+        calories: 20, sugarContent: 9, isHealthy: false,
+        affinities: { munchlet: 'loved', grib: 'disliked', plompo: 'loved', fizz: 'loved', ember: 'disliked', chomper: 'liked', whisp: 'loved', luxe: 'loved' }
+      },
+      vitamins: {
+        id: 'vitamins', name: 'Vitamins', emoji: '💊', rarity: Rarity.Rare,
+        type: FoodType.Medicine, hunger: 0, mood: -2, xp: 1, cost: 20,
+        calories: 0, sugarContent: 0, isHealthy: true, preventsSickness: true,
+        affinities: { munchlet: 'disliked', grib: 'neutral', plompo: 'neutral', fizz: 'neutral', ember: 'neutral', chomper: 'disliked', whisp: 'neutral', luxe: 'disliked' }
+      },
+      smoothie: {
+        id: 'smoothie', name: 'Smoothie', emoji: '🥤', rarity: Rarity.Uncommon,
+        type: FoodType.Snack, hunger: 12, mood: 4, xp: 2, cost: 12,
+        calories: 8, sugarContent: 4, isHealthy: true,
+        affinities: { munchlet: 'liked', grib: 'neutral', plompo: 'liked', fizz: 'loved', ember: 'neutral', chomper: 'neutral', whisp: 'liked', luxe: 'liked' }
+      }
+    };
+
+    // Merge new foods
+    Object.assign(EXTENDED_FOODS, NEW_FOODS);
+
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+
+    const xpForLevel = (level) => Math.round(20 + (level * level * 1.4));
+    const getMoodTier = (mood) => MOOD_TIERS.find(t => mood >= t.min && mood <= t.max) || MOOD_TIERS[2];
+    const getGrowthStage = (level) => level <= 6 ? 'baby' : level <= 12 ? 'youth' : 'evolved';
+    const getStageScale = (stage) => stage === 'baby' ? 1 : stage === 'youth' ? 1.12 : 1.25;
+
+    const createDefaultPetState = (petId) => ({
+      id: petId, level: 1, xp: 0, hunger: 80, mood: 60, bond: 0,
+      stage: 'baby', totalFeedings: 0, totalXpEarned: 0,
+      // Hybrid Mode additions (Phase 1)
+      happiness: 70,
+      weight: 100,  // 50-150, 100 = ideal
+      stomachCurrent: 0,
+      stomachCapacity: getStomachCapacity(1),
+      lastFeedTime: Date.now(),
+      // Phase 2: Poop system
+      poopCount: 0,
+      lastPoopTime: Date.now(),
+      cleanlinessScore: 100,
+      careMistakes: 0,
+      // Phase 3: Sickness & Death
+      isSick: false,
+      sicknessStartTime: null,
+      hasVitaminProtection: false,
+      isDead: false,
+      deathTime: null,
+      evolutionBranch: 'good'  // good, neutral, bad
+    });
+
+    const createInitialUnlocks = () => {
+      const unlocks = {};
+      Object.keys(PETS).forEach(id => { unlocks[id] = PETS[id].isStarter; });
+      return unlocks;
+    };
+
+    const STARTING_INVENTORY = { apple: 5, banana: 3, carrot: 3 };
+    const STARTING_COINS = 100;
+    const STARTING_GEMS = 10;
+    const LEVEL_UP_COINS = 50;
+    const LEVEL_UP_GEMS = 5;
+    const BASE_DAILY_GEMS = 5;
+
+    // ============================================================
+    // ZUSTAND-LIKE STATE HOOK
+    // ============================================================
+
+    const STORAGE_KEY = 'grundy-game-v2';
+
+    const loadState = () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+      return null;
+    };
+
+    const saveState = (state) => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {}
+    };
+
+    const createInitialState = () => ({
+      screen: 'splash',
+      activePetId: null,
+      isFirstSession: true,
+      tutorialCompleted: false,
+      tutorialStep: 0,
+      petStates: {},
+      unlockedPets: createInitialUnlocks(),
+      inventory: { ...STARTING_INVENTORY, candy: 2, chips: 2, salad: 1 },
+      coins: STARTING_COINS,
+      gems: STARTING_GEMS,
+      totalGemsEarned: STARTING_GEMS,
+      lastGemCollect: null,
+      // Hybrid Mode additions (Phase 1)
+      gameMode: null,  // 'casual' or 'classic', set during onboarding
+      modeSelectedAt: null,
+      lastDigestionUpdate: Date.now(),
+      // Phase 2: Maintenance Loop
+      loginStreak: 0,
+      lastLoginDate: null,
+      dailyEvent: null,
+      dailyEventDate: null,
+      streakRewardClaimed: false,
+    });
+
+    const useGameState = () => {
+      const [state, setState] = useState(() => loadState() || createInitialState());
+
+      useEffect(() => { saveState(state); }, [state]);
+
+      const update = useCallback((changes) => {
+        setState(prev => ({ ...prev, ...changes }));
+      }, []);
+
+      return [state, update, setState];
+    };
+
+    // ============================================================
+    // COMPONENTS
+    // ============================================================
+
+    // Confetti effect
+    const Confetti = ({ count = 50 }) => {
+      const confetti = useMemo(() => {
+        const emojis = ['🎉', '🎊', '✨', '⭐', '💫', '🌟'];
+        return Array.from({ length: count }, (_, i) => ({
+          id: i,
+          emoji: emojis[Math.floor(Math.random() * emojis.length)],
+          left: Math.random() * 100,
+          delay: Math.random() * 2,
+          duration: 2 + Math.random() * 2,
+        }));
+      }, [count]);
+
+      return (
+        <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+          {confetti.map(c => (
+            <span key={c.id} className="confetti" style={{
+              left: `${c.left}%`, animationDelay: `${c.delay}s`, animationDuration: `${c.duration}s`
+            }}>{c.emoji}</span>
+          ))}
+        </div>
+      );
+    };
+
+    // Modal wrapper
+    const Modal = ({ children, onClose, className = '' }) => (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4 animate-fadeIn" onClick={onClose}>
+        <div className={`glass rounded-3xl p-6 max-w-sm w-full animate-slideUp ${className}`} onClick={e => e.stopPropagation()}>
+          {children}
+        </div>
+      </div>
+    );
+
+    // Currency display
+    const CurrencyDisplay = ({ coins, gems, onGemsClick }) => (
+      <div className="flex gap-3 p-2">
+        <div className="glass rounded-full px-4 py-2 flex items-center gap-2">
+          <span className="text-xl">🪙</span>
+          <span className="text-white font-bold">{coins}</span>
+        </div>
+        <button onClick={onGemsClick} className="glass rounded-full px-4 py-2 flex items-center gap-2 hover:bg-white/20 transition">
+          <span className="text-xl">💎</span>
+          <span className="text-white font-bold">{gems}</span>
+        </button>
+      </div>
+    );
+
+    // Progress bar
+    const ProgressBar = ({ value, max, color, label, icon, showText = true }) => {
+      const pct = Math.min(100, Math.max(0, (value / max) * 100));
+      return (
+        <div className="w-full">
+          {label && <div className="text-xs text-white/70 mb-1 flex items-center gap-1">{icon} {label}</div>}
+          <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
+          </div>
+          {showText && <div className="text-xs text-white/50 mt-0.5 text-right">{Math.round(value)}/{max}</div>}
+        </div>
+      );
+    };
+
+    // Pet display
+    const PetDisplay = ({ pet, petState, size = 'large', onClick, showStats = true, isLocked = false, isEating = false }) => {
+      const [bouncing, setBouncing] = useState(false);
+      const scale = getStageScale(petState?.stage || 'baby');
+      const moodTier = getMoodTier(petState?.mood || 50);
+
+      // Phase 5: Weight-based scaling
+      const weight = petState?.weight || 100;
+      const weightScale = weight < 70 ? 0.85 : weight < 90 ? 0.92 : weight <= 110 ? 1 : weight <= 130 ? 1.08 : 1.15;
+
+      // Phase 5: Determine animation based on state
+      const getAnimationClass = () => {
+        if (isEating) return 'animate-eating';
+        if (bouncing) return 'animate-bounce-custom';
+        if (isLocked) return '';
+        if (petState?.isSick) return 'animate-sick';
+        if (petState?.hunger < 20) return 'animate-hungry';
+        if (petState?.mood >= 80) return 'animate-happy';
+        if (petState?.mood < 30) return 'animate-sad';
+        return 'animate-idle';
+      };
+
+      // Phase 5: Expression based on state
+      const getExpression = () => {
+        if (petState?.isSick) return '🤒';
+        if (petState?.hunger < 20) return '😰';
+        if (petState?.mood >= 80) return '🤩';
+        if (petState?.mood >= 60) return '😊';
+        if (petState?.mood >= 40) return '😐';
+        if (petState?.mood >= 20) return '😕';
+        return '😢';
+      };
+
+      const handleClick = () => {
+        if (onClick) {
+          setBouncing(true);
+          setTimeout(() => setBouncing(false), 600);
+          onClick();
+          AudioManager.playSfx('tap');
+          VibrationManager.vibratePreset('tap');
+        }
+      };
+
+      const fontSize = size === 'large' ? 'text-9xl' : size === 'medium' ? 'text-6xl' : 'text-4xl';
+
+      return (
+        <div className="flex flex-col items-center" onClick={handleClick}>
+          <div
+            className={`relative ${getAnimationClass()} cursor-pointer pet-shadow`}
+            style={{
+              '--weight-scale': weightScale * scale,
+              filter: isLocked ? 'grayscale(1) brightness(0.5)' : (petState?.hunger < 20 ? 'grayscale(0.5)' : 'none')
+            }}
+          >
+            <span className={fontSize} style={{ transform: `scale(${weightScale * scale})`, display: 'block' }}>
+              {pet.emoji}
+            </span>
+            {!isLocked && petState && (
+              <span className="absolute -top-2 -right-2 text-3xl">{getExpression()}</span>
+            )}
+            {isLocked && <span className="absolute inset-0 flex items-center justify-center text-4xl">🔒</span>}
+          </div>
+          {showStats && petState && !isLocked && (
+            <div className="mt-4 text-center">
+              <div className="text-white font-bold text-lg">{pet.name}</div>
+              <div className="text-white/70 text-sm">Lv.{petState.level} {petState.stage}</div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // Food item
+    const FoodItem = ({ food, count, onClick, disabled, showCost = false, costType = 'coins' }) => {
+      const rarityColor = RARITY_COLORS[food.rarity];
+      return (
+        <button
+          onClick={onClick}
+          disabled={disabled || count <= 0}
+          className={`glass rounded-xl p-3 flex flex-col items-center transition-all ${disabled || count <= 0 ? 'opacity-50' : 'hover:scale-105 hover:bg-white/20'}`}
+          style={{ borderColor: rarityColor, borderWidth: 2 }}
+        >
+          <span className="text-3xl">{food.emoji}</span>
+          <span className="text-white text-xs mt-1">{food.name}</span>
+          {showCost ? (
+            <span className="text-white/70 text-xs flex items-center gap-1">
+              {costType === 'gems' && food.gemCost ? <><span>💎</span>{food.gemCost}</> : <><span>🪙</span>{food.cost}</>}
+            </span>
+          ) : (
+            <span className="text-white/70 text-xs">×{count || 0}</span>
+          )}
+        </button>
+      );
+    };
+
+    // Reaction popup
+    const ReactionPopup = ({ reaction, onClose }) => {
+      const config = {
+        loved: { emoji: '🤩', color: '#fbbf24', message: 'LOVES IT!' },
+        liked: { emoji: '😋', color: '#4ade80', message: 'Yummy!' },
+        neutral: { emoji: '😊', color: '#60a5fa', message: 'Nom!' },
+        disliked: { emoji: '😖', color: '#f87171', message: 'Yuck...' },
+      };
+      const { emoji, color, message } = config[reaction.affinity];
+
+      useEffect(() => {
+        const timer = setTimeout(onClose, 2000);
+        return () => clearTimeout(timer);
+      }, [onClose]);
+
+      return (
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-30">
+          <div className="animate-bounce-custom text-center">
+            <div className="text-7xl">{emoji}</div>
+            <div className="text-2xl font-bold mt-2" style={{ color }}>{message}</div>
+            <div className="text-white text-lg">+{reaction.xpGained} XP</div>
+            {reaction.bonusGems > 0 && <div className="text-yellow-400 text-lg">+{reaction.bonusGems} 💎</div>}
+            {reaction.abilityTriggered && <div className="text-purple-300 text-sm">{reaction.abilityTriggered}!</div>}
+          </div>
+        </div>
+      );
+    };
+
+    // Level up modal
+    const LevelUpModal = ({ level, evolved, newStage, pet, onClose }) => (
+      <Modal onClose={onClose}>
+        <Confetti />
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-bounce-custom">{evolved ? '🎊' : '🎉'}</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Level Up!</h2>
+          <div className="text-5xl font-bold text-yellow-400 mb-4">Level {level}</div>
+          {evolved && (
+            <div className="bg-purple-500/30 rounded-xl p-3 mb-4">
+              <div className="text-purple-200">Evolution!</div>
+              <div className="text-white font-bold">{pet.name} is now {newStage}!</div>
+            </div>
+          )}
+          <div className="text-white/70 mb-4">
+            <div>+{LEVEL_UP_COINS} 🪙</div>
+            <div>+{LEVEL_UP_GEMS} 💎</div>
+          </div>
+          <button onClick={onClose} className="w-full py-3 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl text-white font-bold">
+            Awesome!
+          </button>
+        </div>
+      </Modal>
+    );
+
+    // Pet unlock celebration modal
+    const PetUnlockModal = ({ pet, onClose }) => (
+      <Modal onClose={onClose}>
+        <Confetti count={80} />
+        <div className="text-center">
+          <div className="text-8xl mb-4 animate-sparkle">{pet.emoji}</div>
+          <h2 className="text-2xl font-bold text-white mb-2">New Pet Unlocked!</h2>
+          <div className="text-xl text-white mb-2">{pet.name}</div>
+          <div className="text-white/70 text-sm mb-4">{pet.personality}</div>
+          <div className="glass rounded-xl p-3 mb-4">
+            <div className="text-purple-300 text-sm">Special Ability</div>
+            <div className="text-white font-bold">{pet.ability.name}</div>
+            <div className="text-white/70 text-xs">{pet.ability.desc}</div>
+          </div>
+          <button onClick={onClose} className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-bold">
+            Meet {pet.name}!
+          </button>
+        </div>
+      </Modal>
+    );
+
+    // ============================================================
+    // SCREENS
+    // ============================================================
+
+    // Splash Screen
+    const SplashScreen = ({ onStart }) => (
+      <div className="h-full gradient-bg flex flex-col items-center justify-center p-8">
+        <div className="text-8xl mb-6 animate-float">🐾</div>
+        <h1 className="text-4xl font-bold text-white mb-2">Grundy</h1>
+        <p className="text-white/70 mb-8">Virtual Pet Adventure</p>
+        <button onClick={onStart} className="px-8 py-4 bg-white rounded-full text-purple-600 font-bold text-lg hover:scale-105 transition animate-pulse-custom">
+          Tap to Start
+        </button>
+      </div>
+    );
+
+    // Story Screen
+    const StoryScreen = ({ screenIndex, onNext, onSkip }) => {
+      const story = STORY_SCREENS[screenIndex];
+      const isLast = screenIndex === STORY_SCREENS.length - 1;
+
+      return (
+        <div className="h-full gradient-bg flex flex-col p-8">
+          <button onClick={onSkip} className="self-end text-white/50 text-sm">Skip</button>
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <div className="text-8xl mb-6 animate-float">{story.emoji}</div>
+            <h2 className="text-2xl font-bold text-white mb-4">{story.title}</h2>
+            <p className="text-white/80 text-lg leading-relaxed">{story.text}</p>
+          </div>
+          <button onClick={onNext} className="w-full py-4 bg-white rounded-full text-purple-600 font-bold">
+            {isLast ? 'Choose Your Pet' : 'Continue'}
+          </button>
+          <div className="flex justify-center gap-2 mt-4">
+            {STORY_SCREENS.map((_, i) => (
+              <div key={i} className={`w-2 h-2 rounded-full ${i === screenIndex ? 'bg-white' : 'bg-white/30'}`} />
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // Pet Pick Screen
+    const PetPickScreen = ({ onSelect }) => {
+      const starters = Object.values(PETS).filter(p => p.isStarter);
+      const [selected, setSelected] = useState(null);
+
+      return (
+        <div className="h-full gradient-bg flex flex-col p-6">
+          <h2 className="text-2xl font-bold text-white text-center mb-2">Choose Your Pet!</h2>
+          <p className="text-white/70 text-center mb-6">Each has unique abilities</p>
+
+          <div className="flex-1 flex flex-col gap-4 overflow-auto">
+            {starters.map(pet => (
+              <button
+                key={pet.id}
+                onClick={() => setSelected(pet.id)}
+                className={`glass rounded-2xl p-4 flex items-center gap-4 transition-all ${selected === pet.id ? 'ring-2 ring-white scale-105' : ''}`}
+              >
+                <span className="text-5xl">{pet.emoji}</span>
+                <div className="flex-1 text-left">
+                  <div className="text-white font-bold text-lg">{pet.name}</div>
+                  <div className="text-white/70 text-sm">{pet.personality}</div>
+                  <div className="text-purple-300 text-xs mt-1">{pet.ability.name}: {pet.ability.desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => selected && onSelect(selected)}
+            disabled={!selected}
+            className={`w-full py-4 rounded-full font-bold mt-4 transition ${selected ? 'bg-white text-purple-600' : 'bg-white/30 text-white/50'}`}
+          >
+            {selected ? `Choose ${PETS[selected].name}!` : 'Select a pet'}
+          </button>
+        </div>
+      );
+    };
+
+    // ============================================================
+    // MODE SELECTION SCREEN (WEB-036)
+    // ============================================================
+
+    const ModeSelectScreen = ({ onSelect }) => {
+      const [selected, setSelected] = useState(null);
+
+      return (
+        <div className="h-full bg-gradient-to-b from-indigo-900 to-purple-900 flex flex-col p-6">
+          <h2 className="text-2xl font-bold text-white text-center mb-2">Choose Your Experience</h2>
+          <p className="text-white/70 text-center mb-8">How do you want to play?</p>
+
+          <div className="flex-1 flex flex-col gap-6">
+            {/* Casual Mode */}
+            <button
+              onClick={() => setSelected('casual')}
+              className={`glass rounded-2xl p-6 text-left transition-all ${selected === 'casual' ? 'ring-2 ring-green-400 scale-105 bg-green-500/20' : 'hover:bg-white/10'}`}
+            >
+              <div className="flex items-center gap-4 mb-3">
+                <span className="text-5xl">{MODE_CONFIG.casual.icon}</span>
+                <div>
+                  <div className="text-white font-bold text-xl">{MODE_CONFIG.casual.name}</div>
+                  <div className="text-green-300 text-sm">Recommended for new players</div>
+                </div>
+              </div>
+              <p className="text-white/70 text-sm mb-3">{MODE_CONFIG.casual.description}</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-green-500/30 text-green-300 text-xs px-2 py-1 rounded">No death</span>
+                <span className="bg-green-500/30 text-green-300 text-xs px-2 py-1 rounded">Slower decay</span>
+                <span className="bg-green-500/30 text-green-300 text-xs px-2 py-1 rounded">Unlimited feeding</span>
+              </div>
+            </button>
+
+            {/* Classic Mode */}
+            <button
+              onClick={() => setSelected('classic')}
+              className={`glass rounded-2xl p-6 text-left transition-all ${selected === 'classic' ? 'ring-2 ring-red-400 scale-105 bg-red-500/20' : 'hover:bg-white/10'}`}
+            >
+              <div className="flex items-center gap-4 mb-3">
+                <span className="text-5xl">{MODE_CONFIG.classic.icon}</span>
+                <div>
+                  <div className="text-white font-bold text-xl">{MODE_CONFIG.classic.name}</div>
+                  <div className="text-red-300 text-sm">For experienced Tamagotchi fans</div>
+                </div>
+              </div>
+              <p className="text-white/70 text-sm mb-3">{MODE_CONFIG.classic.description}</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-red-500/30 text-red-300 text-xs px-2 py-1 rounded">Pet can die</span>
+                <span className="bg-red-500/30 text-red-300 text-xs px-2 py-1 rounded">Sickness</span>
+                <span className="bg-red-500/30 text-red-300 text-xs px-2 py-1 rounded">Feeding limits</span>
+              </div>
+            </button>
+          </div>
+
+          <button
+            onClick={() => selected && onSelect(selected)}
+            disabled={!selected}
+            className={`w-full py-4 rounded-full font-bold mt-6 transition ${
+              selected === 'casual' ? 'bg-green-500 text-white' :
+              selected === 'classic' ? 'bg-red-500 text-white' :
+              'bg-white/30 text-white/50'
+            }`}
+          >
+            {selected ? `Start ${MODE_CONFIG[selected].name}` : 'Select a mode'}
+          </button>
+        </div>
+      );
+    };
+
+    // ============================================================
+    // HYBRID MODE UI COMPONENTS
+    // ============================================================
+
+    // Happiness Meter (WEB-037)
+    const HappinessMeter = ({ value }) => {
+      const tier = getHappinessTier(value);
+      const pct = Math.min(100, Math.max(0, value));
+
+      return (
+        <div className="w-full">
+          <div className="text-xs text-white/70 mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1">💝 Happiness</span>
+            <span className="flex items-center gap-1">{tier.icon} {tier.label}</span>
+          </div>
+          <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${pct}%`,
+                background: `linear-gradient(90deg, #f87171 0%, #fbbf24 50%, #4ade80 100%)`
+              }}
+            />
+          </div>
+        </div>
+      );
+    };
+
+    // Weight Indicator (WEB-038)
+    const WeightIndicator = ({ weight }) => {
+      const status = getWeightStatus(weight);
+      const pct = ((weight - 50) / 100) * 100; // 50-150 mapped to 0-100%
+
+      return (
+        <div className="glass rounded-xl p-3">
+          <div className="text-xs text-white/70 mb-1 flex items-center justify-between">
+            <span>⚖️ Weight</span>
+            <span className="flex items-center gap-1">{status.icon} {status.label}</span>
+          </div>
+          <div className="h-2 bg-white/20 rounded-full overflow-hidden relative">
+            {/* Ideal zone indicator */}
+            <div className="absolute left-[40%] right-[40%] h-full bg-green-500/30" />
+            <div
+              className="absolute h-full w-2 bg-white rounded-full transition-all duration-300"
+              style={{ left: `calc(${pct}% - 4px)` }}
+            />
+          </div>
+          <div className="text-xs text-white/50 mt-1 flex justify-between">
+            <span>🦴</span>
+            <span>💪</span>
+            <span>🎈</span>
+          </div>
+        </div>
+      );
+    };
+
+    // Stomach Meter (WEB-051)
+    const StomachMeter = ({ current, capacity }) => {
+      const status = getStomachStatus(current, capacity);
+      const pct = Math.min(100, (current / capacity) * 100);
+
+      return (
+        <div className="w-full">
+          <div className="text-xs text-white/70 mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1">🫃 Tummy</span>
+            <span style={{ color: status.color }}>{status.icon} {status.label}</span>
+          </div>
+          <div className="h-3 bg-white/20 rounded-full overflow-hidden relative">
+            {/* Warning zone at 90% */}
+            <div className="absolute right-0 w-[10%] h-full bg-yellow-500/30" />
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${pct}%`,
+                backgroundColor: pct > 90 ? '#fbbf24' : pct > 60 ? '#60a5fa' : '#4ade80'
+              }}
+            />
+          </div>
+          <div className="text-xs text-white/50 mt-0.5 text-right">{Math.round(current)}/{capacity}</div>
+        </div>
+      );
+    };
+
+    // Game Mode Badge
+    const ModeBadge = ({ mode }) => {
+      const config = MODE_CONFIG[mode];
+      if (!config) return null;
+
+      return (
+        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
+          mode === 'casual' ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300'
+        }`}>
+          <span>{config.icon}</span>
+          <span>{mode === 'casual' ? 'Casual' : 'Classic'}</span>
+        </div>
+      );
+    };
+
+    // ============================================================
+    // PHASE 2: MAINTENANCE LOOP UI COMPONENTS
+    // ============================================================
+
+    // Poop Indicator (WEB-039)
+    const PoopIndicator = ({ count, onClean }) => {
+      const status = getPoopStatus(count);
+
+      return (
+        <div className="flex items-center justify-between glass rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{status.icon}</span>
+            <div>
+              <div className="text-white font-bold text-sm">Cleanliness</div>
+              <div className="text-xs" style={{ color: status.color }}>{status.label}</div>
+            </div>
+          </div>
+          {count > 0 && (
+            <button
+              onClick={onClean}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-1 transition"
+            >
+              <span>🧹</span> Clean
+            </button>
+          )}
+        </div>
+      );
+    };
+
+    // Login Streak Banner (WEB-045)
+    const LoginStreakBanner = ({ streak, reward, onClaim, claimed }) => {
+      if (!reward) return null;
+
+      return (
+        <div className="glass rounded-xl p-4 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-400/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="text-4xl">🔥</div>
+              <div>
+                <div className="text-white font-bold text-lg">{streak} Day Streak!</div>
+                <div className="text-amber-200 text-sm">{reward.message}</div>
+              </div>
+            </div>
+            {!claimed ? (
+              <button
+                onClick={onClaim}
+                className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-full font-bold animate-pulse transition"
+              >
+                Claim!
+              </button>
+            ) : (
+              <div className="text-green-400 text-sm font-bold flex items-center gap-1">
+                <span>✓</span> Claimed
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 mt-3 text-xs">
+            {reward.coins && (
+              <span className="bg-yellow-500/30 text-yellow-300 px-2 py-1 rounded">
+                +{reward.coins} 🪙
+              </span>
+            )}
+            {reward.gems && (
+              <span className="bg-purple-500/30 text-purple-300 px-2 py-1 rounded">
+                +{reward.gems} 💎
+              </span>
+            )}
+            {reward.item && (
+              <span className="bg-pink-500/30 text-pink-300 px-2 py-1 rounded">
+                +1 {FOODS[reward.item]?.emoji || '🎁'}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // Daily Event Banner (WEB-044)
+    const DailyEventBanner = ({ event }) => {
+      if (!event) return null;
+
+      return (
+        <div className="glass rounded-xl p-3 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-400/30">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{event.icon}</span>
+            <div>
+              <div className="text-white font-bold">{event.name}</div>
+              <div className="text-indigo-200 text-xs">{event.description}</div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Shop with Categories (WEB-048)
+    const ShopCategoryTabs = ({ activeCategory, onSelect }) => {
+      return (
+        <div className="flex gap-1 overflow-x-auto pb-2">
+          <button
+            onClick={() => onSelect(null)}
+            className={`px-3 py-1 rounded-full text-sm font-bold whitespace-nowrap transition ${
+              activeCategory === null ? 'bg-white text-purple-600' : 'bg-white/20 text-white/70 hover:bg-white/30'
+            }`}
+          >
+            All
+          </button>
+          {SHOP_CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => onSelect(cat)}
+              className={`px-3 py-1 rounded-full text-sm font-bold whitespace-nowrap capitalize transition ${
+                activeCategory === cat ? 'bg-white text-purple-600' : 'bg-white/20 text-white/70 hover:bg-white/30'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      );
+    };
+
+    // ============================================================
+    // PHASE 3: CLASSIC STAKES UI COMPONENTS
+    // ============================================================
+
+    // Sickness Indicator (WEB-040)
+    const SicknessIndicator = ({ isSick, onGiveMedicine }) => {
+      if (!isSick) return null;
+
+      return (
+        <div className="glass rounded-xl p-3 bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🤒</span>
+              <div>
+                <div className="text-red-300 font-bold">Pet is Sick!</div>
+                <div className="text-red-200/70 text-xs">Give vitamins to cure</div>
+              </div>
+            </div>
+            <button
+              onClick={onGiveMedicine}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm font-bold transition animate-pulse"
+            >
+              💊 Cure
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // Death Modal (WEB-041)
+    const DeathModal = ({ pet, cause, onReset, onClose }) => (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6">
+        <div className="glass rounded-3xl p-8 max-w-sm w-full text-center">
+          <div className="text-6xl mb-4 grayscale">😢</div>
+          <h2 className="text-2xl font-bold text-white mb-2">{pet.name} has passed away</h2>
+          <p className="text-white/70 mb-4">
+            {cause === 'starvation' && 'Your pet starved from lack of food.'}
+            {cause === 'sickness' && 'Your pet succumbed to untreated illness.'}
+            {cause === 'neglect' && 'Your pet was neglected for too long.'}
+          </p>
+          <div className="glass rounded-xl p-4 mb-6">
+            <div className="text-white/50 text-sm mb-2">Care Score</div>
+            <div className="text-3xl font-bold text-red-400">Poor</div>
+          </div>
+          <div className="space-y-3">
+            <button
+              onClick={onReset}
+              className="w-full py-3 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full text-white font-bold"
+            >
+              🌱 Start Fresh
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-3 glass rounded-full text-white/70"
+            >
+              Return to Menu
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+
+    // Care Mistake Warning (WEB-042)
+    const CareMistakeWarning = ({ mistakes, threshold }) => {
+      if (mistakes < threshold) return null;
+
+      const danger = mistakes >= DEATH_CONFIG.mistakesBeforeRisk;
+
+      return (
+        <div className={`glass rounded-xl p-3 ${danger ? 'bg-red-500/30 border-red-400/50' : 'bg-yellow-500/20 border-yellow-400/30'} border`}>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{danger ? '💀' : '⚠️'}</span>
+            <div>
+              <div className={`font-bold ${danger ? 'text-red-300' : 'text-yellow-300'}`}>
+                {danger ? 'Pet in Danger!' : 'Care Warning'}
+              </div>
+              <div className="text-xs text-white/70">
+                {mistakes} care mistakes • {danger ? 'Risk of death!' : 'Be more careful'}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Evolution Preview (WEB-043)
+    const EvolutionBranchIndicator = ({ branch }) => {
+      const colors = {
+        good: 'text-green-400 bg-green-500/20 border-green-400/30',
+        neutral: 'text-yellow-400 bg-yellow-500/20 border-yellow-400/30',
+        bad: 'text-red-400 bg-red-500/20 border-red-400/30'
+      };
+      const icons = { good: '⭐', neutral: '⚡', bad: '💔' };
+      const labels = { good: 'Good Path', neutral: 'Neutral Path', bad: 'Bad Path' };
+
+      return (
+        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold border ${colors[branch]}`}>
+          <span>{icons[branch]}</span>
+          <span>{labels[branch]}</span>
+        </div>
+      );
+    };
+
+    // Notification Toast (WEB-049)
+    const NotificationToast = ({ notification, onDismiss }) => {
+      if (!notification) return null;
+
+      const type = NOTIFICATION_TYPES[notification.type];
+
+      return (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-slide-down">
+          <div className="glass rounded-xl p-4 bg-gradient-to-r from-purple-500/30 to-indigo-500/30 border border-purple-400/30 flex items-center gap-3 shadow-lg">
+            <span className="text-2xl">{type?.icon || '🔔'}</span>
+            <div className="text-white font-medium">{type?.message || notification.message}</div>
+            <button onClick={onDismiss} className="text-white/50 hover:text-white ml-2">✕</button>
+          </div>
+        </div>
+      );
+    };
+
+    // ============================================================
+    // PWA INSTALL PROMPT BANNER (WEB-077)
+    // ============================================================
+
+    const InstallPromptBanner = ({ onDismiss }) => {
+      const [isVisible, setIsVisible] = useState(false);
+      const [isInstalling, setIsInstalling] = useState(false);
+
+      useEffect(() => {
+        // Check if install prompt is available
+        const checkInstallAvailable = () => {
+          if (window.deferredInstallPrompt && !window.isPWAInstalled) {
+            setIsVisible(true);
+          }
+        };
+
+        // Check on mount
+        checkInstallAvailable();
+
+        // Listen for install prompt becoming available
+        const handleInstallAvailable = () => setIsVisible(true);
+        const handleInstalled = () => setIsVisible(false);
+
+        window.addEventListener('pwa-install-available', handleInstallAvailable);
+        window.addEventListener('pwa-installed', handleInstalled);
+
+        return () => {
+          window.removeEventListener('pwa-install-available', handleInstallAvailable);
+          window.removeEventListener('pwa-installed', handleInstalled);
+        };
+      }, []);
+
+      const handleInstall = async () => {
+        setIsInstalling(true);
+        try {
+          const accepted = await window.triggerPWAInstall();
+          if (accepted) {
+            setIsVisible(false);
+          }
+        } catch (e) {
+          console.error('Install failed:', e);
+        }
+        setIsInstalling(false);
+      };
+
+      const handleDismiss = () => {
+        setIsVisible(false);
+        // Store dismissal in session to not show again this session
+        sessionStorage.setItem('pwa-install-dismissed', 'true');
+        if (onDismiss) onDismiss();
+      };
+
+      // Don't show if already dismissed this session
+      if (!isVisible || sessionStorage.getItem('pwa-install-dismissed')) return null;
+
+      return (
+        <div className="fixed bottom-20 left-4 right-4 z-50 animate-slideUp">
+          <div className="glass rounded-2xl p-4 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-400/30 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="text-4xl animate-pulse-custom">📱</div>
+              <div className="flex-1">
+                <h3 className="text-yellow-300 font-bold text-lg">Install Grundy!</h3>
+                <p className="text-white/80 text-sm mt-1">
+                  Add to your home screen for the best experience - play offline anytime!
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={handleDismiss}
+                className="flex-1 py-2 glass rounded-xl text-white/70 font-medium text-sm hover:bg-white/10 transition-colors"
+              >
+                Maybe Later
+              </button>
+              <button
+                onClick={handleInstall}
+                disabled={isInstalling}
+                className="flex-1 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-xl text-black font-bold text-sm hover:from-yellow-300 hover:to-amber-400 transition-all disabled:opacity-50"
+              >
+                {isInstalling ? 'Installing...' : 'Install'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Tutorial Screen - Fixed with proper step progression and reaction feedback
+    const TutorialScreen = ({ step, petState, pet, inventory, onAction, onSkip }) => {
+      const tutorial = TUTORIAL_STEPS[step];
+      const [tutorialState, setTutorialState] = useState('idle'); // 'idle' | 'feeding' | 'reacting' | 'ready'
+      const [feedReaction, setFeedReaction] = useState(null);
+
+      // Reset state when step changes
+      useEffect(() => {
+        setTutorialState('idle');
+        setFeedReaction(null);
+      }, [step]);
+
+      const handleFeed = (foodId) => {
+        if (tutorialState !== 'idle') return;
+
+        const food = FOODS[foodId];
+        const affinity = food.affinities[pet.id] || 'neutral';
+
+        // Show feeding animation
+        setTutorialState('feeding');
+
+        // After short delay, show reaction
+        setTimeout(() => {
+          setFeedReaction({
+            affinity,
+            xpGained: Math.round(food.xp * AFFINITY_MULTIPLIERS[affinity]),
+            emoji: affinity === 'loved' ? '🤩' : affinity === 'liked' ? '😋' : affinity === 'disliked' ? '😖' : '😊',
+            message: affinity === 'loved' ? 'LOVES IT!' : affinity === 'liked' ? 'Yummy!' : affinity === 'disliked' ? 'Yuck...' : 'Nom!',
+            color: affinity === 'loved' ? '#fbbf24' : affinity === 'liked' ? '#4ade80' : affinity === 'disliked' ? '#f87171' : '#60a5fa'
+          });
+          setTutorialState('reacting');
+
+          // After reaction, advance to next step
+          setTimeout(() => {
+            setTutorialState('ready');
+            onAction();
+          }, 1800);
+        }, 300);
+      };
+
+      const needsFeed = tutorial.action === 'feed' && tutorialState === 'idle';
+      const showReaction = tutorialState === 'reacting' && feedReaction;
+      const showButton = tutorial.action !== 'feed' || tutorialState === 'ready';
+
+      return (
+        <div className="h-full bg-gradient-to-b from-indigo-900 to-purple-900 flex flex-col">
+          <div className="p-4 flex justify-end">
+            <button onClick={onSkip} className="text-white/50 text-sm">Skip Tutorial</button>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
+            <PetDisplay pet={pet} petState={petState} />
+
+            {/* Reaction popup during tutorial */}
+            {showReaction && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                <div className="animate-bounce-custom text-center bg-black/50 rounded-3xl p-6">
+                  <div className="text-6xl">{feedReaction.emoji}</div>
+                  <div className="text-xl font-bold mt-2" style={{ color: feedReaction.color }}>{feedReaction.message}</div>
+                  <div className="text-white text-lg">+{feedReaction.xpGained} XP</div>
+                </div>
+              </div>
+            )}
+
+            <div className="glass rounded-2xl p-6 mt-6 w-full max-w-sm">
+              <h3 className="text-white font-bold text-lg mb-2">{tutorial.title}</h3>
+              <p className="text-white/80">{tutorial.message}</p>
+            </div>
+
+            {needsFeed && (
+              <div className="grid grid-cols-3 gap-3 mt-6">
+                {Object.entries(inventory).filter(([_, c]) => c > 0).slice(0, 3).map(([foodId, count]) => (
+                  <FoodItem key={foodId} food={FOODS[foodId]} count={count} onClick={() => handleFeed(foodId)} />
+                ))}
+              </div>
+            )}
+
+            {tutorialState === 'feeding' && (
+              <div className="mt-6 text-white/70 animate-pulse">Feeding...</div>
+            )}
+          </div>
+
+          {showButton && tutorial.action !== 'feed' && (
+            <div className="p-6">
+              <button onClick={onAction} className="w-full py-4 bg-white rounded-full text-purple-600 font-bold">
+                {tutorial.action === 'finish' ? 'Start Playing!' : 'Got it!'}
+              </button>
+            </div>
+          )}
+
+          <div className="flex justify-center gap-2 pb-6">
+            {TUTORIAL_STEPS.map((_, i) => (
+              <div key={i} className={`w-2 h-2 rounded-full ${i === step ? 'bg-white' : 'bg-white/30'}`} />
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // Main Menu Screen
+    const MainMenu = ({ petState, pet, onPlay, onPets, onShop, onGames, onSettings, onCollectGems, canCollect, coins, gems, loginStreak, streakReward, streakClaimed, onClaimStreak, dailyEvent }) => (
+      <div className="h-full bg-gradient-to-b from-indigo-900 to-purple-900 flex flex-col">
+        <div className="p-4 flex justify-between items-center">
+          <CurrencyDisplay coins={coins} gems={gems} />
+          <button onClick={onSettings} className="glass rounded-full p-2 text-white hover:bg-white/20 transition-colors">
+            <span className="text-xl">⚙️</span>
+          </button>
+        </div>
+
+        {/* Phase 2: Daily Event Banner */}
+        {dailyEvent && (
+          <div className="px-4 pb-2">
+            <DailyEventBanner event={dailyEvent} />
+          </div>
+        )}
+
+        {/* Phase 2: Login Streak Banner */}
+        {loginStreak > 0 && streakReward && (
+          <div className="px-4 pb-2">
+            <LoginStreakBanner
+              streak={loginStreak}
+              reward={streakReward}
+              claimed={streakClaimed}
+              onClaim={onClaimStreak}
+            />
+          </div>
+        )}
+
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <PetDisplay pet={pet} petState={petState} />
+
+          {canCollect && (
+            <button onClick={onCollectGems} className="glass rounded-full px-6 py-3 mt-4 text-yellow-400 font-bold animate-pulse-custom flex items-center gap-2">
+              <span className="text-xl">💎</span> Collect Daily Gems!
+            </button>
+          )}
+        </div>
+
+        <div className="p-6 space-y-3">
+          <button onClick={onPlay} className="w-full py-4 bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl text-white font-bold text-lg flex items-center justify-center gap-2">
+            <span>🍎</span> Feed & Play
+          </button>
+          <div className="flex gap-3">
+            <button onClick={onPets} className="flex-1 py-4 glass rounded-2xl text-white font-bold flex items-center justify-center gap-2">
+              <span>🐾</span> My Pets
+            </button>
+            <button onClick={onShop} className="flex-1 py-4 glass rounded-2xl text-white font-bold flex items-center justify-center gap-2">
+              <span>🛒</span> Shop
+            </button>
+          </div>
+          <button onClick={onGames} className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl text-white font-bold text-lg flex items-center justify-center gap-2">
+            <span>🎮</span> Mini-Games
+          </button>
+        </div>
+      </div>
+    );
+
+    // Pet Care Screen (Main gameplay)
+    const PetCareScreen = ({ state, update, onBack }) => {
+      const [reaction, setReaction] = useState(null);
+      const [levelUp, setLevelUp] = useState(null);
+      const [overfeedWarning, setOverfeedWarning] = useState(null);
+
+      const petState = state.petStates[state.activePetId];
+      const pet = PETS[state.activePetId];
+      const modeConfig = MODE_CONFIG[state.gameMode || 'casual'];
+
+      // Get food from extended foods if available
+      const getFood = (foodId) => EXTENDED_FOODS[foodId] || FOODS[foodId];
+
+      const feedPet = (foodId) => {
+        const food = getFood(foodId);
+        const count = state.inventory[foodId] || 0;
+        if (count <= 0) return;
+
+        // Check stomach capacity (WEB-051)
+        const stomachCapacity = petState.stomachCapacity || getStomachCapacity(petState.level);
+        const stomachCurrent = petState.stomachCurrent || 0;
+        const foodSize = (food.hunger || 10) * 0.5;
+        const newStomach = stomachCurrent + foodSize;
+
+        // Block feeding if completely full in Classic mode
+        if (modeConfig.feedingLimitEnabled && stomachCurrent >= stomachCapacity) {
+          setOverfeedWarning({ type: 'full', message: "Tummy is completely full! Wait for digestion." });
+          return;
+        }
+
+        // Warn if approaching overfeed in Classic mode
+        const isOverfeed = newStomach > stomachCapacity * STOMACH_CONFIG.overfeedThreshold;
+        if (modeConfig.feedingLimitEnabled && isOverfeed && !overfeedWarning) {
+          setOverfeedWarning({ type: 'warning', message: "Getting too full! May cause tummy ache.", foodId });
+          return;
+        }
+
+        // Clear warning if proceeding
+        setOverfeedWarning(null);
+
+        const affinity = food.affinities?.[state.activePetId] || 'neutral';
+        const moodTier = getMoodTier(petState.mood);
+        const happinessTier = getHappinessTier(petState.happiness || 70);
+        let affinityMult = AFFINITY_MULTIPLIERS[affinity];
+
+        let bonusGems = 0;
+        let abilityTriggered = null;
+
+        // Apply abilities
+        if (pet.ability.type === AbilityType.XPBoost) {
+          affinityMult *= pet.ability.mod;
+          abilityTriggered = pet.ability.name;
+        }
+        if (pet.ability.type === AbilityType.LuckyFeeder && affinity === 'loved') {
+          affinityMult = pet.ability.mod;
+          abilityTriggered = pet.ability.name;
+        }
+        if (pet.ability.type === AbilityType.GemFinder && Math.random() < pet.ability.mod) {
+          bonusGems = 1;
+          abilityTriggered = pet.ability.name;
+        }
+
+        // Apply happiness multiplier (WEB-037)
+        const happinessXpMult = happinessTier.xpMult;
+
+        // Phase 2: Apply daily event multipliers
+        const dailyEvent = state.dailyEvent;
+        const eventXpMult = dailyEvent?.xpMultiplier || 1;
+        const eventMoodBoost = dailyEvent?.moodBoost || 0;
+        const eventHungerBoost = dailyEvent?.hungerBoost || 0;
+
+        // Calculate XP with all multipliers
+        let xpGained = Math.round(food.xp * affinityMult * moodTier.mult * happinessXpMult * eventXpMult);
+
+        // Overfeed penalty in Classic mode
+        if (modeConfig.feedingLimitEnabled && isOverfeed) {
+          xpGained = Math.floor(xpGained * 0.5);
+        }
+
+        let moodChange = (food.mood || 0) + eventMoodBoost;
+        if (affinity === 'loved') moodChange += 3;
+        else if (affinity === 'liked') moodChange += 1;
+        else if (affinity === 'disliked') {
+          moodChange -= 2;
+          if (pet.ability.type === AbilityType.NegativeResist) {
+            moodChange = Math.round(moodChange * pet.ability.mod);
+          }
+        }
+
+        // Overfeed mood penalty
+        if (modeConfig.feedingLimitEnabled && isOverfeed) {
+          moodChange += STOMACH_CONFIG.overfeedMoodPenalty;
+        }
+
+        // Weight changes (WEB-038)
+        const calories = food.calories || Math.round((food.hunger || 10) * 0.8);
+        const currentWeight = petState.weight || 100;
+        let weightChange = 0;
+        if (calories > 12) weightChange = 1;
+        else if (calories < 6) weightChange = -0.5;
+        const newWeight = Math.max(50, Math.min(150, currentWeight + weightChange));
+
+        // Happiness update
+        let happinessChange = 0;
+        if (food.isHealthy) happinessChange += 2;
+        if (!food.isHealthy && food.sugarContent > 5) happinessChange -= 1;
+        if (affinity === 'loved') happinessChange += 3;
+        else if (affinity === 'disliked') happinessChange -= 2;
+        const newHappiness = Math.max(0, Math.min(100, (petState.happiness || 70) + happinessChange));
+
+        let newXp = petState.xp + xpGained;
+        let newLevel = petState.level;
+        let leveledUp = false;
+        let evolved = false;
+        let newStage = petState.stage;
+        let coinReward = 0;
+        let gemReward = bonusGems;
+
+        // Phase 3: Track evolution branch
+        let newEvolutionBranch = petState.evolutionBranch || 'good';
+
+        while (newXp >= xpForLevel(newLevel) && newLevel < 20) {
+          newXp -= xpForLevel(newLevel);
+          newLevel++;
+          leveledUp = true;
+          coinReward += LEVEL_UP_COINS;
+          gemReward += LEVEL_UP_GEMS;
+          const updatedStage = getGrowthStage(newLevel);
+          if (updatedStage !== newStage) {
+            evolved = true;
+            // Phase 3: Determine evolution branch based on care score
+            newEvolutionBranch = getEvolutionBranch(petState, state.gameMode);
+            const branchSuffix = state.gameMode === 'classic' && newEvolutionBranch !== 'good'
+              ? `_${newEvolutionBranch}`
+              : '';
+            newStage = updatedStage + branchSuffix;
+          }
+        }
+
+        // Update stomach capacity on level up
+        const newStomachCapacity = leveledUp ? getStomachCapacity(newLevel) : stomachCapacity;
+
+        const newPetState = {
+          ...petState,
+          xp: newXp,
+          level: newLevel,
+          hunger: Math.min(100, petState.hunger + (food.hunger || 10) + eventHungerBoost),
+          mood: Math.max(0, Math.min(100, petState.mood + moodChange)),
+          stage: newStage,
+          totalFeedings: petState.totalFeedings + 1,
+          totalXpEarned: petState.totalXpEarned + xpGained,
+          // Hybrid mode updates
+          happiness: newHappiness,
+          weight: newWeight,
+          stomachCurrent: Math.min(newStomach, newStomachCapacity),
+          stomachCapacity: newStomachCapacity,
+          lastFeedTime: Date.now(),
+          // Phase 3: Evolution branch
+          evolutionBranch: newEvolutionBranch,
+        };
+
+        const newInventory = { ...state.inventory, [foodId]: count - 1 };
+
+        update({
+          petStates: { ...state.petStates, [state.activePetId]: newPetState },
+          inventory: newInventory,
+          coins: state.coins + coinReward,
+          gems: state.gems + gemReward,
+        });
+
+        setReaction({ affinity, xpGained, bonusGems: gemReward, abilityTriggered, isOverfeed });
+
+        // Phase 4: Play sound and vibration
+        AudioManager.playSfx('feed');
+        VibrationManager.vibratePreset('feed');
+        if (leveledUp) {
+          setTimeout(() => {
+            AudioManager.playSfx('levelUp');
+            VibrationManager.vibratePreset('levelUp');
+          }, 500);
+        }
+        if (gemReward > 0) {
+          AudioManager.playSfx('coin');
+        }
+
+        if (leveledUp) {
+          setTimeout(() => setLevelUp({ level: newLevel, evolved, newStage }), 2000);
+        }
+      };
+
+      const xpNeeded = xpForLevel(petState.level);
+      const moodTier = getMoodTier(petState.mood);
+      const stomachCapacity = petState.stomachCapacity || getStomachCapacity(petState.level);
+      const stomachCurrent = petState.stomachCurrent || 0;
+
+      return (
+        <div className="h-full bg-gradient-to-b from-indigo-900 to-purple-900 flex flex-col">
+          {/* Header */}
+          <div className="p-4 flex items-center justify-between">
+            <button onClick={onBack} className="glass rounded-full p-2 text-white">
+              <span className="text-xl">←</span>
+            </button>
+            <div className="flex items-center gap-2">
+              {state.gameMode && <ModeBadge mode={state.gameMode} />}
+              <CurrencyDisplay coins={state.coins} gems={state.gems} />
+            </div>
+          </div>
+
+          {/* Pet */}
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <PetDisplay pet={pet} petState={petState} showStats={false} />
+            {/* Weight indicator under pet */}
+            <div className="mt-2 w-48">
+              <WeightIndicator weight={petState.weight || 100} />
+            </div>
+          </div>
+
+          {/* Stats - Now includes hybrid mode meters */}
+          <div className="px-6 space-y-2" id="stats">
+            <div className="flex items-center gap-2 text-white">
+              <span className="font-bold">{pet.name}</span>
+              <span className="text-white/50">Lv.{petState.level}</span>
+              <span className="ml-auto">{moodTier.icon} {moodTier.label}</span>
+            </div>
+            <ProgressBar value={petState.xp} max={xpNeeded} color="#fbbf24" label="XP" icon="⭐" />
+            <ProgressBar value={petState.hunger} max={100} color="#fb923c" label="Hunger" icon="🍖" />
+            <ProgressBar value={petState.mood} max={100} color="#f472b6" label="Mood" icon="💕" />
+            {/* Hybrid Mode meters */}
+            <HappinessMeter value={petState.happiness || 70} />
+            <StomachMeter current={stomachCurrent} capacity={stomachCapacity} />
+          </div>
+
+          {/* Poop/Cleaning (Phase 2) */}
+          <div className="px-4">
+            <PoopIndicator
+              count={petState.poopCount || 0}
+              onClean={() => {
+                if ((petState.poopCount || 0) <= 0) return;
+                const newPetState = {
+                  ...petState,
+                  poopCount: petState.poopCount - 1,
+                  cleanlinessScore: Math.min(100, (petState.cleanlinessScore || 100) + 10),
+                  happiness: Math.min(100, (petState.happiness || 70) + 2)
+                };
+                update({
+                  petStates: { ...state.petStates, [state.activePetId]: newPetState }
+                });
+              }}
+            />
+          </div>
+
+          {/* Phase 3: Sickness Indicator */}
+          {petState.isSick && (
+            <div className="px-4">
+              <SicknessIndicator
+                isSick={petState.isSick}
+                onGiveMedicine={() => {
+                  const vitamins = state.inventory.vitamins || 0;
+                  if (vitamins <= 0) return;
+                  const newPetState = {
+                    ...petState,
+                    isSick: false,
+                    sicknessStartTime: null,
+                    mood: Math.min(100, petState.mood + 10),
+                    happiness: Math.min(100, (petState.happiness || 70) + 5)
+                  };
+                  update({
+                    petStates: { ...state.petStates, [state.activePetId]: newPetState },
+                    inventory: { ...state.inventory, vitamins: vitamins - 1 }
+                  });
+                }}
+              />
+            </div>
+          )}
+
+          {/* Phase 3: Care Mistake Warning (Classic Mode) */}
+          {state.gameMode === 'classic' && (
+            <div className="px-4">
+              <CareMistakeWarning
+                mistakes={petState.careMistakes || 0}
+                threshold={DEATH_CONFIG.warningThreshold}
+              />
+            </div>
+          )}
+
+          {/* Food bag */}
+          <div className="p-4" id="food-bag">
+            <div className="text-white/70 text-sm mb-2">Food Bag</div>
+            <div className="grid grid-cols-5 gap-2">
+              {Object.entries(state.inventory).filter(([_, c]) => c > 0).map(([foodId, count]) => {
+                const food = getFood(foodId);
+                return food ? (
+                  <FoodItem key={foodId} food={food} count={count} onClick={() => feedPet(foodId)} />
+                ) : null;
+              })}
+              {Object.values(state.inventory).every(c => !c || c <= 0) && (
+                <div className="col-span-5 text-center text-white/50 py-4">No food! Visit the shop.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Reaction popup */}
+          {reaction && <ReactionPopup reaction={reaction} onClose={() => setReaction(null)} />}
+
+          {/* Level up modal */}
+          {levelUp && <LevelUpModal {...levelUp} pet={pet} onClose={() => setLevelUp(null)} />}
+
+          {/* Overfeed warning modal */}
+          {overfeedWarning && (
+            <Modal onClose={() => setOverfeedWarning(null)}>
+              <div className="text-center">
+                <div className="text-5xl mb-4">{overfeedWarning.type === 'full' ? '🤢' : '⚠️'}</div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  {overfeedWarning.type === 'full' ? 'Tummy Full!' : 'Warning!'}
+                </h3>
+                <p className="text-white/70 mb-4">{overfeedWarning.message}</p>
+                {overfeedWarning.type === 'warning' && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setOverfeedWarning(null)}
+                      className="flex-1 py-3 glass rounded-xl text-white font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOverfeedWarning(null);
+                        feedPet(overfeedWarning.foodId);
+                      }}
+                      className="flex-1 py-3 bg-yellow-500 rounded-xl text-white font-bold"
+                    >
+                      Feed Anyway
+                    </button>
+                  </div>
+                )}
+                {overfeedWarning.type === 'full' && (
+                  <button
+                    onClick={() => setOverfeedWarning(null)}
+                    className="w-full py-3 glass rounded-xl text-white font-bold"
+                  >
+                    OK
+                  </button>
+                )}
+              </div>
+            </Modal>
+          )}
+        </div>
+      );
+    };
+
+    // Pet Selector Screen
+    const PetSelectorScreen = ({ state, update, onBack, onUnlock }) => {
+      const [selectedPet, setSelectedPet] = useState(null);
+      const [showUnlock, setShowUnlock] = useState(null);
+
+      const handleSelect = (petId) => {
+        if (state.unlockedPets[petId]) {
+          // Switch to this pet
+          let petStates = { ...state.petStates };
+          if (!petStates[petId]) {
+            petStates[petId] = createDefaultPetState(petId);
+          }
+          update({ activePetId: petId, petStates, screen: 'pet_care' });
+        } else {
+          setShowUnlock(petId);
+        }
+      };
+
+      const handleUnlock = (petId) => {
+        const pet = PETS[petId];
+        if (state.gems >= pet.gemCost) {
+          const newPetState = createDefaultPetState(petId);
+          update({
+            unlockedPets: { ...state.unlockedPets, [petId]: true },
+            petStates: { ...state.petStates, [petId]: newPetState },
+            gems: state.gems - pet.gemCost,
+          });
+          setShowUnlock(null);
+          onUnlock(pet);
+        }
+      };
+
+      const allPets = Object.values(PETS).sort((a, b) => a.gemCost - b.gemCost);
+
+      return (
+        <div className="h-full bg-gradient-to-b from-indigo-900 to-purple-900 flex flex-col">
+          <div className="p-4 flex items-center gap-4">
+            <button onClick={onBack} className="glass rounded-full p-2 text-white">
+              <span className="text-xl">←</span>
+            </button>
+            <h2 className="text-xl font-bold text-white flex-1">My Pets</h2>
+            <CurrencyDisplay coins={state.coins} gems={state.gems} />
+          </div>
+
+          <div className="flex-1 overflow-auto p-4 space-y-3">
+            {allPets.map(pet => {
+              const isUnlocked = state.unlockedPets[pet.id];
+              const petState = state.petStates[pet.id];
+              const isActive = state.activePetId === pet.id;
+
+              return (
+                <button
+                  key={pet.id}
+                  onClick={() => handleSelect(pet.id)}
+                  className={`w-full glass rounded-2xl p-4 flex items-center gap-4 transition ${isActive ? 'ring-2 ring-green-400' : ''} ${!isUnlocked ? 'opacity-70' : ''}`}
+                >
+                  <div className="relative">
+                    <span className="text-5xl" style={{ filter: isUnlocked ? 'none' : 'grayscale(1) brightness(0.5)' }}>
+                      {pet.emoji}
+                    </span>
+                    {!isUnlocked && <span className="absolute inset-0 flex items-center justify-center text-2xl">🔒</span>}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="text-white font-bold flex items-center gap-2">
+                      {pet.name}
+                      {isActive && <span className="text-xs bg-green-500 px-2 py-0.5 rounded">Active</span>}
+                    </div>
+                    {isUnlocked && petState ? (
+                      <div className="text-white/70 text-sm">Lv.{petState.level} • {petState.stage}</div>
+                    ) : (
+                      <div className="text-yellow-400 text-sm flex items-center gap-1">
+                        <span>💎</span> {pet.gemCost} gems to unlock
+                      </div>
+                    )}
+                    <div className="text-purple-300 text-xs mt-1">{pet.ability.name}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Unlock confirmation modal */}
+          {showUnlock && (
+            <Modal onClose={() => setShowUnlock(null)}>
+              <div className="text-center">
+                <span className="text-6xl block mb-4">{PETS[showUnlock].emoji}</span>
+                <h3 className="text-xl font-bold text-white mb-2">Unlock {PETS[showUnlock].name}?</h3>
+                <p className="text-white/70 mb-4">{PETS[showUnlock].personality}</p>
+                <div className="glass rounded-xl p-3 mb-4">
+                  <div className="text-purple-300 text-sm">{PETS[showUnlock].ability.name}</div>
+                  <div className="text-white/70 text-xs">{PETS[showUnlock].ability.desc}</div>
+                </div>
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <span className="text-2xl">💎</span>
+                  <span className="text-2xl font-bold text-white">{PETS[showUnlock].gemCost}</span>
+                  <span className="text-white/50">/ {state.gems} owned</span>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowUnlock(null)} className="flex-1 py-3 glass rounded-xl text-white">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleUnlock(showUnlock)}
+                    disabled={state.gems < PETS[showUnlock].gemCost}
+                    className={`flex-1 py-3 rounded-xl font-bold ${state.gems >= PETS[showUnlock].gemCost ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-gray-600 text-gray-400'}`}
+                  >
+                    Unlock!
+                  </button>
+                </div>
+              </div>
+            </Modal>
+          )}
+        </div>
+      );
+    };
+
+    // Shop Screen
+    const ShopScreen = ({ state, update, onBack }) => {
+      const [tab, setTab] = useState('coins');
+      const [category, setCategory] = useState(null);
+      const [purchased, setPurchased] = useState(null);
+
+      // Phase 2: Apply sale discount from daily event
+      const saleDiscount = state.dailyEvent?.discount || 0;
+
+      const buyFood = (foodId, useGems = false) => {
+        const food = EXTENDED_FOODS[foodId] || FOODS[foodId];
+        if (useGems && food.gemCost) {
+          if (state.gems >= food.gemCost) {
+            update({
+              inventory: { ...state.inventory, [foodId]: (state.inventory[foodId] || 0) + 1 },
+              gems: state.gems - food.gemCost,
+            });
+            setPurchased(food);
+          }
+        } else {
+          const finalCost = Math.floor(food.cost * (1 - saleDiscount));
+          if (state.coins >= finalCost) {
+            update({
+              inventory: { ...state.inventory, [foodId]: (state.inventory[foodId] || 0) + 1 },
+              coins: state.coins - finalCost,
+            });
+            setPurchased(food);
+          }
+        }
+      };
+
+      // Use extended foods catalog
+      const allFoods = Object.values(EXTENDED_FOODS);
+      let coinFoods = allFoods.filter(f => !f.gemCost).sort((a, b) => a.cost - b.cost);
+      let gemFoods = allFoods.filter(f => f.gemCost);
+
+      // Phase 2: Apply category filter
+      if (category) {
+        coinFoods = coinFoods.filter(f => getShopCategory(f) === category);
+        gemFoods = gemFoods.filter(f => getShopCategory(f) === category);
+      }
+
+      return (
+        <div className="h-full bg-gradient-to-b from-indigo-900 to-purple-900 flex flex-col">
+          <div className="p-4 flex items-center gap-4">
+            <button onClick={onBack} className="glass rounded-full p-2 text-white">
+              <span className="text-xl">←</span>
+            </button>
+            <h2 className="text-xl font-bold text-white flex-1">Shop</h2>
+            <CurrencyDisplay coins={state.coins} gems={state.gems} />
+          </div>
+
+          {/* Sale Banner */}
+          {saleDiscount > 0 && (
+            <div className="mx-4 mb-2 bg-gradient-to-r from-pink-500/30 to-red-500/30 rounded-xl p-2 text-center border border-pink-400/30">
+              <span className="text-pink-200 font-bold">🏷️ {Math.round(saleDiscount * 100)}% OFF SALE!</span>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="px-4 flex gap-2">
+            <button
+              onClick={() => setTab('coins')}
+              className={`flex-1 py-2 rounded-xl font-bold transition ${tab === 'coins' ? 'bg-yellow-500 text-white' : 'glass text-white/70'}`}
+            >
+              🪙 Coins
+            </button>
+            <button
+              onClick={() => setTab('gems')}
+              className={`flex-1 py-2 rounded-xl font-bold transition ${tab === 'gems' ? 'bg-purple-500 text-white' : 'glass text-white/70'}`}
+            >
+              💎 Premium
+            </button>
+          </div>
+
+          {/* Category Filter */}
+          <div className="px-4 pt-2">
+            <ShopCategoryTabs activeCategory={category} onSelect={setCategory} />
+          </div>
+
+          <div className="flex-1 overflow-auto p-4">
+            <div className="grid grid-cols-3 gap-3">
+              {(tab === 'coins' ? coinFoods : gemFoods).map(food => {
+                const finalCost = Math.floor(food.cost * (1 - saleDiscount));
+                const canAfford = tab === 'gems' ? state.gems >= food.gemCost : state.coins >= finalCost;
+                return (
+                  <button
+                    key={food.id}
+                    onClick={() => buyFood(food.id, tab === 'gems')}
+                    disabled={!canAfford}
+                    className={`glass rounded-xl p-3 flex flex-col items-center transition ${canAfford ? 'hover:bg-white/20' : 'opacity-50'}`}
+                    style={{ borderColor: RARITY_COLORS[food.rarity], borderWidth: 2 }}
+                  >
+                    <span className="text-4xl">{food.emoji}</span>
+                    <span className="text-white text-sm mt-1">{food.name}</span>
+                    <span className="text-white/70 text-xs capitalize">{food.rarity}</span>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span>{tab === 'gems' ? '💎' : '🪙'}</span>
+                      {tab === 'gems' ? (
+                        <span className="text-white font-bold">{food.gemCost}</span>
+                      ) : saleDiscount > 0 ? (
+                        <>
+                          <span className="text-white/50 line-through text-xs">{food.cost}</span>
+                          <span className="text-green-400 font-bold">{finalCost}</span>
+                        </>
+                      ) : (
+                        <span className="text-white font-bold">{food.cost}</span>
+                      )}
+                    </div>
+                    <div className="text-white/50 text-xs mt-1">
+                      +{food.hunger} hunger • +{food.xp} XP
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Purchase popup */}
+          {purchased && (
+            <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-30">
+              <div className="animate-bounce-custom text-center" onAnimationEnd={() => setPurchased(null)}>
+                <div className="text-6xl">{purchased.emoji}</div>
+                <div className="text-green-400 font-bold mt-2">Purchased!</div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // Gem income modal
+    const GemIncomeModal = ({ amount, onClose }) => (
+      <Modal onClose={onClose}>
+        <Confetti count={30} />
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-sparkle">💎</div>
+          <h2 className="text-xl font-bold text-white mb-2">Daily Gems Collected!</h2>
+          <div className="text-4xl font-bold text-purple-400 mb-4">+{amount} 💎</div>
+          <p className="text-white/70 text-sm mb-4">Come back tomorrow for more!</p>
+          <button onClick={onClose} className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-bold">
+            Awesome!
+          </button>
+        </div>
+      </Modal>
+    );
+
+    // ============================================================
+    // MINI-GAMES (Section 9)
+    // ============================================================
+
+    // Snack Catch Mini-Game
+    const SnackCatchGame = ({ pet, onComplete, onBack }) => {
+      const [gameState, setGameState] = useState('ready'); // 'ready' | 'playing' | 'finished'
+      const [score, setScore] = useState(0);
+      const [timeLeft, setTimeLeft] = useState(60);
+      const [basketX, setBasketX] = useState(50);
+      const [fallingItems, setFallingItems] = useState([]);
+      const [combo, setCombo] = useState(0);
+      const [effects, setEffects] = useState([]);
+      const gameRef = useRef(null);
+      const itemIdRef = useRef(0);
+
+      // Determine good/bad foods based on pet preferences
+      const getFoodScore = (foodId) => {
+        const food = FOODS[foodId];
+        const affinity = food.affinities[pet.id];
+        if (affinity === 'loved') return { points: 20, type: 'loved' };
+        if (affinity === 'liked') return { points: 10, type: 'good' };
+        if (affinity === 'neutral') return { points: 5, type: 'neutral' };
+        return { points: -15, type: 'bad' };
+      };
+
+      // Start game
+      const startGame = () => {
+        setGameState('playing');
+        setScore(0);
+        setTimeLeft(60);
+        setCombo(0);
+        setFallingItems([]);
+        setEffects([]);
+      };
+
+      // Handle basket movement
+      const handleMove = (e) => {
+        if (gameState !== 'playing' || !gameRef.current) return;
+        const rect = gameRef.current.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const x = ((clientX - rect.left) / rect.width) * 100;
+        setBasketX(Math.max(10, Math.min(90, x)));
+      };
+
+      // Game timer
+      useEffect(() => {
+        if (gameState !== 'playing') return;
+        const timer = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev <= 1) {
+              setGameState('finished');
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [gameState]);
+
+      // Spawn falling items
+      useEffect(() => {
+        if (gameState !== 'playing') return;
+        const spawnInterval = setInterval(() => {
+          const foodIds = Object.keys(FOODS);
+          const randomFood = foodIds[Math.floor(Math.random() * foodIds.length)];
+          const newItem = {
+            id: itemIdRef.current++,
+            foodId: randomFood,
+            x: 10 + Math.random() * 80,
+            y: -10,
+            speed: 1.5 + Math.random() * 1.5,
+          };
+          setFallingItems(prev => [...prev, newItem]);
+        }, 800);
+        return () => clearInterval(spawnInterval);
+      }, [gameState]);
+
+      // Move falling items and check collisions
+      useEffect(() => {
+        if (gameState !== 'playing') return;
+        const moveInterval = setInterval(() => {
+          setFallingItems(prev => {
+            const updated = [];
+            prev.forEach(item => {
+              const newY = item.y + item.speed;
+
+              // Check if caught by basket
+              if (newY >= 75 && newY <= 90 && Math.abs(item.x - basketX) < 15) {
+                const { points, type } = getFoodScore(item.foodId);
+
+                if (type === 'bad') {
+                  setCombo(0);
+                  setScore(s => Math.max(0, s + points));
+                  setEffects(e => [...e, { id: Date.now(), x: item.x, text: points, color: '#f87171' }]);
+                } else {
+                  const comboBonus = Math.min(combo * 2, 10);
+                  const totalPoints = points + comboBonus;
+                  setCombo(c => c + 1);
+                  setScore(s => s + totalPoints);
+                  const color = type === 'loved' ? '#fbbf24' : type === 'good' ? '#4ade80' : '#60a5fa';
+                  setEffects(e => [...e, { id: Date.now(), x: item.x, text: `+${totalPoints}`, color }]);
+                }
+              } else if (newY < 100) {
+                updated.push({ ...item, y: newY });
+              } else {
+                // Missed - reset combo
+                setCombo(0);
+              }
+            });
+            return updated;
+          });
+
+          // Clean up effects
+          setEffects(prev => prev.filter(e => Date.now() - e.id < 1000));
+        }, 50);
+        return () => clearInterval(moveInterval);
+      }, [gameState, basketX, combo]);
+
+      // Calculate tier and rewards
+      const getTier = () => {
+        if (score >= 300) return { tier: 'Rainbow', emoji: '🌈', coins: 15, xp: 5, color: '#f472b6' };
+        if (score >= 200) return { tier: 'Gold', emoji: '🥇', coins: 10, xp: 5, color: '#fbbf24' };
+        if (score >= 100) return { tier: 'Silver', emoji: '🥈', coins: 6, xp: 4, color: '#9ca3af' };
+        return { tier: 'Bronze', emoji: '🥉', coins: 3, xp: 3, color: '#cd7f32' };
+      };
+
+      const handleFinish = () => {
+        const rewards = getTier();
+        onComplete({ score, ...rewards });
+      };
+
+      if (gameState === 'ready') {
+        return (
+          <div className="h-full bg-gradient-to-b from-blue-900 to-purple-900 flex flex-col items-center justify-center p-6">
+            <button onClick={onBack} className="absolute top-4 left-4 glass rounded-full p-2 text-white">←</button>
+            <div className="text-6xl mb-4">🧺</div>
+            <h2 className="text-2xl font-bold text-white mb-2">Snack Catch!</h2>
+            <p className="text-white/70 text-center mb-4">
+              Catch {pet.name}'s favorite foods!<br/>
+              Avoid foods they dislike!
+            </p>
+            <div className="glass rounded-xl p-4 mb-6 text-sm text-white/80">
+              <div className="flex items-center gap-2 mb-1">🤩 Loved: +20 pts</div>
+              <div className="flex items-center gap-2 mb-1">😋 Liked: +10 pts</div>
+              <div className="flex items-center gap-2 mb-1">😐 Neutral: +5 pts</div>
+              <div className="flex items-center gap-2">😖 Disliked: -15 pts</div>
+              <div className="mt-2 text-yellow-400">Combo bonus: +2 per streak!</div>
+            </div>
+            <button onClick={startGame} className="px-8 py-4 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full text-white font-bold text-lg">
+              Start Game!
+            </button>
+          </div>
+        );
+      }
+
+      if (gameState === 'finished') {
+        const { tier, emoji, coins, xp, color } = getTier();
+        return (
+          <div className="h-full bg-gradient-to-b from-blue-900 to-purple-900 flex flex-col items-center justify-center p-6">
+            <Confetti count={score >= 200 ? 50 : 20} />
+            <div className="text-6xl mb-4">{emoji}</div>
+            <h2 className="text-2xl font-bold text-white mb-2">{tier} Tier!</h2>
+            <div className="text-5xl font-bold mb-4" style={{ color }}>{score} pts</div>
+            <div className="glass rounded-xl p-4 mb-6 text-white">
+              <div className="flex justify-between gap-8">
+                <span>🪙 Coins:</span>
+                <span className="font-bold">+{coins}</span>
+              </div>
+              <div className="flex justify-between gap-8">
+                <span>⭐ XP:</span>
+                <span className="font-bold">+{xp}</span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={startGame} className="px-6 py-3 glass rounded-xl text-white font-bold">
+                Play Again
+              </button>
+              <button onClick={handleFinish} className="px-6 py-3 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl text-white font-bold">
+                Collect Rewards
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          ref={gameRef}
+          className="h-full bg-gradient-to-b from-sky-400 to-blue-600 relative overflow-hidden touch-none"
+          onMouseMove={handleMove}
+          onTouchMove={handleMove}
+        >
+          {/* HUD */}
+          <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10">
+            <div className="glass rounded-full px-4 py-2 text-white font-bold">
+              ⏱️ {timeLeft}s
+            </div>
+            <div className="glass rounded-full px-4 py-2 text-white font-bold">
+              🏆 {score}
+            </div>
+            {combo > 1 && (
+              <div className="glass rounded-full px-4 py-2 text-yellow-400 font-bold animate-pulse">
+                🔥 x{combo}
+              </div>
+            )}
+          </div>
+
+          {/* Falling items */}
+          {fallingItems.map(item => (
+            <div
+              key={item.id}
+              className="absolute text-3xl transition-none"
+              style={{ left: `${item.x}%`, top: `${item.y}%`, transform: 'translate(-50%, -50%)' }}
+            >
+              {FOODS[item.foodId].emoji}
+            </div>
+          ))}
+
+          {/* Score effects */}
+          {effects.map(effect => (
+            <div
+              key={effect.id}
+              className="absolute text-xl font-bold pointer-events-none animate-bounce"
+              style={{
+                left: `${effect.x}%`,
+                top: '70%',
+                color: effect.color,
+                animation: 'floatUp 1s ease-out forwards'
+              }}
+            >
+              {effect.text}
+            </div>
+          ))}
+
+          {/* Basket */}
+          <div
+            className="absolute bottom-16 text-5xl transition-all duration-75"
+            style={{ left: `${basketX}%`, transform: 'translateX(-50%)' }}
+          >
+            🧺
+          </div>
+
+          {/* Ground */}
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-green-800" />
+        </div>
+      );
+    };
+
+    // ============================================================
+    // MEMORY MATCH MINI-GAME (WEB-081)
+    // ============================================================
+
+    const MemoryMatchGame = ({ pet, onComplete, onBack }) => {
+      const [gameState, setGameState] = useState('ready'); // 'ready' | 'playing' | 'finished'
+      const [cards, setCards] = useState([]);
+      const [flippedIndices, setFlippedIndices] = useState([]);
+      const [matchedPairs, setMatchedPairs] = useState([]);
+      const [moves, setMoves] = useState(0);
+      const [canFlip, setCanFlip] = useState(true);
+      const [showPeek, setShowPeek] = useState(false);
+      const hasWhispAbility = pet.id === 'whisp';
+      const hasLuxeAbility = pet.id === 'luxe';
+      const [undoUsed, setUndoUsed] = useState(false);
+
+      // Food emojis for cards
+      const foodEmojis = ['🍎', '🍌', '🥕', '🍪', '🍇', '🌮', '🎂', '⭐'];
+
+      const initGame = () => {
+        // Create pairs
+        const pairs = [...foodEmojis, ...foodEmojis];
+        // Shuffle
+        const shuffled = pairs.sort(() => Math.random() - 0.5).map((emoji, i) => ({
+          id: i, emoji, isFlipped: false, isMatched: false
+        }));
+        setCards(shuffled);
+        setFlippedIndices([]);
+        setMatchedPairs([]);
+        setMoves(0);
+        setCanFlip(true);
+        setUndoUsed(false);
+        setGameState('playing');
+
+        // Whisp ability: peek at start
+        if (hasWhispAbility) {
+          setShowPeek(true);
+          setTimeout(() => setShowPeek(false), 2000);
+        }
+
+        AudioManager.playSfx('levelUp');
+      };
+
+      const handleCardClick = (index) => {
+        if (!canFlip || gameState !== 'playing') return;
+        if (flippedIndices.includes(index)) return;
+        if (matchedPairs.includes(cards[index].emoji)) return;
+
+        AudioManager.playSfx('tap');
+        VibrationManager.vibratePreset('tap');
+
+        const newFlipped = [...flippedIndices, index];
+        setFlippedIndices(newFlipped);
+
+        if (newFlipped.length === 2) {
+          setMoves(m => m + 1);
+          setCanFlip(false);
+
+          const [first, second] = newFlipped;
+          if (cards[first].emoji === cards[second].emoji) {
+            // Match found!
+            AudioManager.playSfx('success');
+            VibrationManager.vibratePreset('success');
+            setMatchedPairs(prev => [...prev, cards[first].emoji]);
+            setFlippedIndices([]);
+            setCanFlip(true);
+
+            // Check win condition
+            if (matchedPairs.length + 1 === 8) {
+              setTimeout(() => finishGame(), 500);
+            }
+          } else {
+            // No match - flip back after delay
+            setTimeout(() => {
+              setFlippedIndices([]);
+              setCanFlip(true);
+            }, 1000);
+          }
+        }
+      };
+
+      const handleUndo = () => {
+        if (!hasLuxeAbility || undoUsed || flippedIndices.length === 0) return;
+        setUndoUsed(true);
+        setFlippedIndices([]);
+        setCanFlip(true);
+        AudioManager.playSfx('tap');
+      };
+
+      const finishGame = () => {
+        setGameState('finished');
+        AudioManager.playSfx('levelUp');
+        VibrationManager.vibratePreset('levelUp');
+      };
+
+      const getRewards = () => {
+        if (moves <= 12) return { coins: 100, gems: 3, tier: 'Perfect' };
+        if (moves <= 18) return { coins: 75, gems: 2, tier: 'Great' };
+        if (moves <= 24) return { coins: 50, gems: 1, tier: 'Good' };
+        return { coins: 25, gems: 0, tier: 'Complete' };
+      };
+
+      const handleFinish = () => {
+        const rewards = getRewards();
+        onComplete(rewards);
+      };
+
+      if (gameState === 'ready') {
+        return (
+          <div className="h-full bg-gradient-to-b from-purple-900 to-indigo-900 flex flex-col items-center justify-center p-6">
+            <div className="text-6xl mb-6">🧠</div>
+            <h2 className="text-2xl font-bold text-white mb-4">Memory Match</h2>
+            <p className="text-white/70 text-center mb-6">Find all matching pairs in the fewest moves!</p>
+            {hasWhispAbility && (
+              <div className="glass rounded-xl p-3 mb-4 text-center">
+                <span className="text-yellow-300">⭐ Whisp's Peek: See all cards for 2 seconds!</span>
+              </div>
+            )}
+            <button onClick={initGame} className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-bold text-lg">
+              Start Game
+            </button>
+            <button onClick={onBack} className="mt-4 text-white/50">Back</button>
+          </div>
+        );
+      }
+
+      if (gameState === 'finished') {
+        const rewards = getRewards();
+        return (
+          <div className="h-full bg-gradient-to-b from-purple-900 to-indigo-900 flex flex-col items-center justify-center p-6">
+            <Confetti count={20} />
+            <div className="text-6xl mb-4">🎉</div>
+            <h2 className="text-2xl font-bold text-white mb-2">{rewards.tier}!</h2>
+            <p className="text-white/70 mb-4">Completed in {moves} moves</p>
+            <div className="glass rounded-xl p-4 mb-6 text-center">
+              <div className="text-yellow-400 text-xl font-bold">+{rewards.coins} 🪙</div>
+              {rewards.gems > 0 && <div className="text-purple-400 text-lg">+{rewards.gems} 💎</div>}
+            </div>
+            <button onClick={handleFinish} className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl text-white font-bold">
+              Collect Rewards
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div className="h-full bg-gradient-to-b from-purple-900 to-indigo-900 flex flex-col">
+          {/* Header */}
+          <div className="p-4 flex items-center justify-between">
+            <button onClick={onBack} className="glass rounded-full p-2 text-white">
+              <span className="text-xl">←</span>
+            </button>
+            <div className="text-center">
+              <div className="text-white text-sm">Moves: {moves}</div>
+              <div className="text-yellow-300 text-sm">Pairs: {matchedPairs.length}/8</div>
+            </div>
+            {hasLuxeAbility && !undoUsed && flippedIndices.length > 0 && (
+              <button onClick={handleUndo} className="glass rounded-full px-3 py-1 text-yellow-300 text-sm">
+                ↩️ Undo
+              </button>
+            )}
+          </div>
+
+          {/* Game grid - 4x4 */}
+          <div className="flex-1 p-4 flex items-center justify-center">
+            <div className="grid grid-cols-4 gap-2">
+              {cards.map((card, idx) => {
+                const isFlipped = flippedIndices.includes(idx) || matchedPairs.includes(card.emoji) || showPeek;
+                return (
+                  <button
+                    key={card.id}
+                    onClick={() => handleCardClick(idx)}
+                    className={`w-16 h-20 rounded-xl flex items-center justify-center text-3xl transition-all duration-300 transform
+                      ${isFlipped ? 'bg-white rotate-y-0' : 'bg-gradient-to-br from-purple-500 to-pink-500'}
+                      ${matchedPairs.includes(card.emoji) ? 'opacity-50 scale-95' : 'hover:scale-105'}
+                    `}
+                    style={{
+                      transformStyle: 'preserve-3d',
+                      transform: isFlipped ? 'rotateY(0deg)' : 'rotateY(180deg)'
+                    }}
+                    disabled={matchedPairs.includes(card.emoji)}
+                  >
+                    {isFlipped ? card.emoji : '❓'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ============================================================
+    // RHYTHM TAP MINI-GAME (WEB-083)
+    // ============================================================
+
+    const RhythmTapGame = ({ pet, onComplete, onBack }) => {
+      const [gameState, setGameState] = useState('ready');
+      const [score, setScore] = useState(0);
+      const [combo, setCombo] = useState(0);
+      const [maxCombo, setMaxCombo] = useState(0);
+      const [notes, setNotes] = useState([]);
+      const [effects, setEffects] = useState([]);
+      const [timeLeft, setTimeLeft] = useState(30);
+      const [perfectHits, setPerfectHits] = useState(0);
+      const [totalNotes, setTotalNotes] = useState(0);
+      const noteIdRef = useRef(0);
+      const gameLoopRef = useRef(null);
+      const hasPlompoAbility = pet.id === 'plompo';
+      const hasFizzAbility = pet.id === 'fizz';
+      const hasEmberAbility = pet.id === 'ember';
+      const [feverMode, setFeverMode] = useState(false);
+
+      const LANES = 4;
+      const LANE_COLORS = ['#4ade80', '#60a5fa', '#fbbf24', '#f87171'];
+      const NOTE_SPEED = hasPlompoAbility ? 2.5 : 3; // Plompo = slower
+
+      const startGame = () => {
+        setGameState('playing');
+        setScore(0);
+        setCombo(0);
+        setMaxCombo(0);
+        setNotes([]);
+        setPerfectHits(0);
+        setTotalNotes(0);
+        setTimeLeft(30);
+        AudioManager.playSfx('levelUp');
+      };
+
+      // Game loop
+      useEffect(() => {
+        if (gameState !== 'playing') return;
+
+        // Spawn notes
+        const spawnInterval = setInterval(() => {
+          const lane = Math.floor(Math.random() * LANES);
+          const newNote = {
+            id: noteIdRef.current++,
+            lane,
+            y: -10,
+            hit: false
+          };
+          setNotes(prev => [...prev, newNote]);
+          setTotalNotes(t => t + 1);
+        }, 600);
+
+        // Move notes
+        const moveInterval = setInterval(() => {
+          setNotes(prev => prev
+            .map(note => ({ ...note, y: note.y + NOTE_SPEED }))
+            .filter(note => note.y < 110 || note.hit)
+          );
+        }, 50);
+
+        // Timer
+        const timerInterval = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev <= 1) {
+              setGameState('finished');
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => {
+          clearInterval(spawnInterval);
+          clearInterval(moveInterval);
+          clearInterval(timerInterval);
+        };
+      }, [gameState, NOTE_SPEED]);
+
+      // Check for ember fire streak
+      useEffect(() => {
+        if (hasEmberAbility && combo >= 10 && !feverMode) {
+          setFeverMode(true);
+          // Auto-hit notes for 3 seconds
+          setTimeout(() => setFeverMode(false), 3000);
+        }
+      }, [combo, hasEmberAbility, feverMode]);
+
+      const handleLaneTap = (lane) => {
+        if (gameState !== 'playing') return;
+
+        AudioManager.playSfx('tap');
+        VibrationManager.vibratePreset('tap');
+
+        // Find closest note in lane near target zone (y around 80-90)
+        const targetNote = notes.find(n => n.lane === lane && !n.hit && n.y >= 70 && n.y <= 95);
+
+        if (targetNote) {
+          const distance = Math.abs(targetNote.y - 85);
+          let points, timing;
+
+          if (distance <= 5) {
+            points = 100;
+            timing = 'Perfect!';
+            setPerfectHits(p => p + 1);
+            AudioManager.playSfx('success');
+          } else if (distance <= 10) {
+            points = 50;
+            timing = 'Good!';
+          } else {
+            points = 25;
+            timing = 'OK';
+          }
+
+          // Apply fizz bonus during fever
+          if (hasFizzAbility && combo >= 5) {
+            points = Math.round(points * 1.25);
+          }
+
+          setScore(s => s + points * (1 + combo * 0.1));
+          setCombo(c => {
+            const newCombo = c + 1;
+            if (newCombo > maxCombo) setMaxCombo(newCombo);
+            return newCombo;
+          });
+
+          // Mark note as hit
+          setNotes(prev => prev.map(n => n.id === targetNote.id ? { ...n, hit: true } : n));
+
+          // Show effect
+          setEffects(prev => [...prev, { id: Date.now(), lane, text: timing, points }]);
+          setTimeout(() => setEffects(prev => prev.slice(1)), 500);
+        } else {
+          // Miss
+          setCombo(0);
+        }
+      };
+
+      const getRewards = () => {
+        const accuracy = totalNotes > 0 ? (perfectHits / totalNotes) * 100 : 0;
+        if (accuracy >= 90) return { coins: 100, gems: 3, tier: 'S Rank' };
+        if (accuracy >= 75) return { coins: 75, gems: 2, tier: 'A Rank' };
+        if (accuracy >= 50) return { coins: 50, gems: 1, tier: 'B Rank' };
+        return { coins: 25, gems: 0, tier: 'C Rank' };
+      };
+
+      if (gameState === 'ready') {
+        return (
+          <div className="h-full bg-gradient-to-b from-indigo-900 to-purple-900 flex flex-col items-center justify-center p-6">
+            <div className="text-6xl mb-6">🎵</div>
+            <h2 className="text-2xl font-bold text-white mb-4">Rhythm Tap</h2>
+            <p className="text-white/70 text-center mb-6">Tap the lanes when notes reach the target!</p>
+            {hasPlompoAbility && (
+              <div className="glass rounded-xl p-3 mb-4 text-center">
+                <span className="text-yellow-300">⭐ Plompo's Slow Mo: Notes fall 20% slower!</span>
+              </div>
+            )}
+            <button onClick={startGame} className="px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl text-white font-bold text-lg">
+              Start Game
+            </button>
+            <button onClick={onBack} className="mt-4 text-white/50">Back</button>
+          </div>
+        );
+      }
+
+      if (gameState === 'finished') {
+        const rewards = getRewards();
+        return (
+          <div className="h-full bg-gradient-to-b from-indigo-900 to-purple-900 flex flex-col items-center justify-center p-6">
+            <Confetti count={20} />
+            <div className="text-6xl mb-4">🎵</div>
+            <h2 className="text-2xl font-bold text-white mb-2">{rewards.tier}</h2>
+            <div className="text-white/70 mb-4 text-center">
+              <div>Score: {Math.round(score)}</div>
+              <div>Max Combo: {maxCombo}x</div>
+              <div>Accuracy: {totalNotes > 0 ? Math.round((perfectHits / totalNotes) * 100) : 0}%</div>
+            </div>
+            <div className="glass rounded-xl p-4 mb-6 text-center">
+              <div className="text-yellow-400 text-xl font-bold">+{rewards.coins} 🪙</div>
+              {rewards.gems > 0 && <div className="text-purple-400 text-lg">+{rewards.gems} 💎</div>}
+            </div>
+            <button onClick={() => onComplete(rewards)} className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl text-white font-bold">
+              Collect Rewards
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div className="h-full bg-gradient-to-b from-indigo-900 to-black flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="p-3 flex items-center justify-between z-10">
+            <button onClick={onBack} className="glass rounded-full p-2 text-white text-sm">←</button>
+            <div className="flex items-center gap-4">
+              <div className="text-white text-sm">⏱️ {timeLeft}s</div>
+              <div className="text-yellow-300 font-bold">{Math.round(score)}</div>
+              <div className={`text-sm ${combo >= 5 ? 'text-orange-400' : 'text-white/70'}`}>
+                {combo}x
+              </div>
+            </div>
+          </div>
+
+          {/* Game area */}
+          <div className="flex-1 relative">
+            {/* Lanes */}
+            <div className="absolute inset-0 flex">
+              {[0, 1, 2, 3].map(lane => (
+                <div key={lane} className="flex-1 relative border-x border-white/10">
+                  {/* Lane background */}
+                  <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, transparent 70%, ${LANE_COLORS[lane]}20 100%)` }} />
+                </div>
+              ))}
+            </div>
+
+            {/* Target line */}
+            <div className="absolute bottom-20 left-0 right-0 h-1 bg-white/50" />
+
+            {/* Notes */}
+            {notes.filter(n => !n.hit).map(note => (
+              <div
+                key={note.id}
+                className="absolute w-12 h-8 rounded-full flex items-center justify-center transition-all"
+                style={{
+                  left: `${(note.lane * 25) + 12.5}%`,
+                  top: `${note.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  backgroundColor: LANE_COLORS[note.lane],
+                  boxShadow: `0 0 10px ${LANE_COLORS[note.lane]}`
+                }}
+              >
+                🎵
+              </div>
+            ))}
+
+            {/* Effects */}
+            {effects.map(e => (
+              <div
+                key={e.id}
+                className="absolute text-center animate-fadeIn"
+                style={{ left: `${(e.lane * 25) + 12.5}%`, top: '60%', transform: 'translateX(-50%)' }}
+              >
+                <div className="text-white font-bold text-sm">{e.text}</div>
+                <div className="text-yellow-300 text-xs">+{e.points}</div>
+              </div>
+            ))}
+
+            {/* Fever indicator */}
+            {feverMode && (
+              <div className="absolute top-1/4 left-1/2 -translate-x-1/2 text-orange-500 font-bold text-xl animate-pulse-custom">
+                🔥 FEVER! 🔥
+              </div>
+            )}
+          </div>
+
+          {/* Tap buttons */}
+          <div className="flex h-20">
+            {[0, 1, 2, 3].map(lane => (
+              <button
+                key={lane}
+                onClick={() => handleLaneTap(lane)}
+                className="flex-1 flex items-center justify-center text-3xl active:scale-95 transition-transform"
+                style={{ backgroundColor: LANE_COLORS[lane] + '40' }}
+              >
+                🎯
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // ============================================================
+    // POOP SCOOP MINI-GAME (WEB-085)
+    // ============================================================
+
+    const PoopScoopGame = ({ pet, onComplete, onBack }) => {
+      const [gameState, setGameState] = useState('ready');
+      const [score, setScore] = useState(0);
+      const [timeLeft, setTimeLeft] = useState(60);
+      const [poops, setPoops] = useState([]);
+      const [poopLevel, setPoopLevel] = useState(0);
+      const [effects, setEffects] = useState([]);
+      const poopIdRef = useRef(0);
+      const hasGribAbility = pet.id === 'grib';
+      const hasChomperAbility = pet.id === 'chomper';
+      const hasLuxeAbility = pet.id === 'luxe';
+      const [poopsCleaned, setPoopsCleaned] = useState(0);
+      const [divaRageReady, setDivaRageReady] = useState(false);
+
+      const POOP_TYPES = {
+        normal: { emoji: '💩', points: 10, spawnChance: 0.79 },
+        stinky: { emoji: '💩💚', points: 20, spawnChance: 0.15, timeout: 2000 },
+        golden: { emoji: '✨💩', points: 50, spawnChance: 0.05 },
+        rainbow: { emoji: '🌈💩', points: 100, spawnChance: 0.01 }
+      };
+
+      const startGame = () => {
+        setGameState('playing');
+        setScore(0);
+        setTimeLeft(60);
+        setPoops([]);
+        setPoopLevel(0);
+        setPoopsCleaned(0);
+        setDivaRageReady(false);
+        AudioManager.playSfx('levelUp');
+      };
+
+      // Game loop
+      useEffect(() => {
+        if (gameState !== 'playing') return;
+
+        // Calculate spawn rate based on time elapsed
+        const elapsed = 60 - timeLeft;
+        const spawnRate = Math.min(3, 1 + (elapsed / 30)); // Start at 1, max 3 per second
+
+        const spawnInterval = setInterval(() => {
+          const rand = Math.random();
+          let type = 'normal';
+          if (rand < 0.01) type = 'rainbow';
+          else if (rand < 0.06) type = 'golden';
+          else if (rand < 0.21) type = 'stinky';
+
+          const newPoop = {
+            id: poopIdRef.current++,
+            type,
+            x: 10 + Math.random() * 80,
+            y: 10 + Math.random() * 60,
+            spawnTime: Date.now()
+          };
+          setPoops(prev => [...prev, newPoop]);
+          setPoopLevel(prev => Math.min(100, prev + 2));
+        }, 1000 / spawnRate);
+
+        // Check stinky poop timeouts
+        const stinkyCheck = setInterval(() => {
+          setPoops(prev => {
+            const now = Date.now();
+            return prev.map(p => {
+              if (p.type === 'stinky' && now - p.spawnTime > 2000 && !p.expired) {
+                setScore(s => Math.max(0, s - 10));
+                return { ...p, expired: true };
+              }
+              return p;
+            });
+          });
+        }, 100);
+
+        // Timer
+        const timer = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev <= 1 || poopLevel >= 100) {
+              setGameState('finished');
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => {
+          clearInterval(spawnInterval);
+          clearInterval(stinkyCheck);
+          clearInterval(timer);
+        };
+      }, [gameState, timeLeft, poopLevel]);
+
+      // Luxe diva rage check
+      useEffect(() => {
+        if (hasLuxeAbility && poopsCleaned > 0 && poopsCleaned % 20 === 0) {
+          setDivaRageReady(true);
+        }
+      }, [poopsCleaned, hasLuxeAbility]);
+
+      const handlePoopTap = (poop) => {
+        if (gameState !== 'playing') return;
+
+        AudioManager.playSfx('success');
+        VibrationManager.vibratePreset('tap');
+
+        let points = POOP_TYPES[poop.type].points;
+        if (hasChomperAbility) points *= 2; // Chomper doubles points
+
+        setScore(s => s + points);
+        setPoopLevel(prev => Math.max(0, prev - 3));
+        setPoopsCleaned(p => p + 1);
+
+        // Remove poop
+        setPoops(prev => prev.filter(p => p.id !== poop.id));
+
+        // Grib magnet - remove nearby poops
+        if (hasGribAbility) {
+          setPoops(prev => {
+            const nearby = prev.filter(p =>
+              Math.abs(p.x - poop.x) < 20 && Math.abs(p.y - poop.y) < 20
+            ).slice(0, 2);
+            nearby.forEach(p => {
+              setScore(s => s + POOP_TYPES[p.type].points);
+              setPoopsCleaned(pc => pc + 1);
+            });
+            return prev.filter(p => !nearby.includes(p));
+          });
+        }
+
+        // Show effect
+        setEffects(prev => [...prev, { id: Date.now(), x: poop.x, y: poop.y, points }]);
+        setTimeout(() => setEffects(prev => prev.slice(1)), 500);
+      };
+
+      const handleDivaRage = () => {
+        if (!divaRageReady) return;
+        AudioManager.playSfx('levelUp');
+        VibrationManager.vibratePreset('levelUp');
+
+        // Clear all poops
+        const totalPoints = poops.reduce((sum, p) => sum + POOP_TYPES[p.type].points, 0);
+        setScore(s => s + totalPoints);
+        setPoops([]);
+        setPoopLevel(0);
+        setDivaRageReady(false);
+
+        setEffects(prev => [...prev, { id: Date.now(), x: 50, y: 40, text: 'DISGUSTING!' }]);
+      };
+
+      const getRewards = () => {
+        if (score >= 500) return { coins: 100, gems: 3, tier: 'Spotless' };
+        if (score >= 350) return { coins: 75, gems: 2, tier: 'Clean' };
+        if (score >= 200) return { coins: 50, gems: 1, tier: 'Tidy' };
+        return { coins: 25, gems: 0, tier: 'Messy' };
+      };
+
+      if (gameState === 'ready') {
+        return (
+          <div className="h-full bg-gradient-to-b from-amber-900 to-yellow-900 flex flex-col items-center justify-center p-6">
+            <div className="text-6xl mb-6">🧹</div>
+            <h2 className="text-2xl font-bold text-white mb-4">Poop Scoop</h2>
+            <p className="text-white/70 text-center mb-6">Tap to clean up poop before it piles up!</p>
+            {hasGribAbility && (
+              <div className="glass rounded-xl p-3 mb-4 text-center">
+                <span className="text-yellow-300">⭐ Grib's Magnet: Clear 3 poops at once!</span>
+              </div>
+            )}
+            {hasChomperAbility && (
+              <div className="glass rounded-xl p-3 mb-4 text-center">
+                <span className="text-yellow-300">⭐ Chomper: Double points! (eww)</span>
+              </div>
+            )}
+            <button onClick={startGame} className="px-8 py-4 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl text-black font-bold text-lg">
+              Start Game
+            </button>
+            <button onClick={onBack} className="mt-4 text-white/50">Back</button>
+          </div>
+        );
+      }
+
+      if (gameState === 'finished') {
+        const rewards = getRewards();
+        const failed = poopLevel >= 100;
+        return (
+          <div className="h-full bg-gradient-to-b from-amber-900 to-yellow-900 flex flex-col items-center justify-center p-6">
+            {!failed && <Confetti count={20} />}
+            <div className="text-6xl mb-4">{failed ? '💩' : '✨'}</div>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {failed ? 'Too Much Poop!' : rewards.tier}
+            </h2>
+            <div className="text-white/70 mb-4">
+              Score: {score} | Cleaned: {poopsCleaned}
+            </div>
+            <div className="glass rounded-xl p-4 mb-6 text-center">
+              <div className="text-yellow-400 text-xl font-bold">+{rewards.coins} 🪙</div>
+              {rewards.gems > 0 && <div className="text-purple-400 text-lg">+{rewards.gems} 💎</div>}
+            </div>
+            <button onClick={() => onComplete(rewards)} className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl text-white font-bold">
+              Collect Rewards
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div className="h-full bg-gradient-to-b from-amber-800 to-yellow-900 flex flex-col">
+          {/* Header */}
+          <div className="p-3 flex items-center justify-between">
+            <button onClick={onBack} className="glass rounded-full p-2 text-white text-sm">←</button>
+            <div className="flex items-center gap-4">
+              <div className="text-white text-sm">⏱️ {timeLeft}s</div>
+              <div className="text-yellow-300 font-bold">{score}</div>
+            </div>
+            {divaRageReady && (
+              <button onClick={handleDivaRage} className="bg-pink-500 px-3 py-1 rounded-full text-white text-sm animate-pulse-custom">
+                👑 RAGE!
+              </button>
+            )}
+          </div>
+
+          {/* Poop level bar */}
+          <div className="px-4">
+            <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all ${poopLevel > 80 ? 'bg-red-500' : poopLevel > 50 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                style={{ width: `${poopLevel}%` }}
+              />
+            </div>
+            <div className="text-center text-xs text-white/50 mt-1">Poop Level: {poopLevel}%</div>
+          </div>
+
+          {/* Game area */}
+          <div className="flex-1 relative p-4">
+            {/* Poops */}
+            {poops.map(poop => (
+              <button
+                key={poop.id}
+                onClick={() => handlePoopTap(poop)}
+                className={`absolute text-3xl transition-transform hover:scale-125 active:scale-75
+                  ${poop.expired ? 'opacity-50' : ''}
+                  ${poop.type === 'rainbow' ? 'animate-sparkle' : ''}
+                  ${poop.type === 'golden' ? 'animate-pulse-custom' : ''}
+                `}
+                style={{ left: `${poop.x}%`, top: `${poop.y}%`, transform: 'translate(-50%, -50%)' }}
+              >
+                {poop.type === 'stinky' ? '💩💚' :
+                 poop.type === 'golden' ? '✨💩' :
+                 poop.type === 'rainbow' ? '🌈💩' : '💩'}
+              </button>
+            ))}
+
+            {/* Effects */}
+            {effects.map(e => (
+              <div
+                key={e.id}
+                className="absolute text-center animate-fadeIn pointer-events-none"
+                style={{ left: `${e.x}%`, top: `${e.y}%`, transform: 'translate(-50%, -50%)' }}
+              >
+                {e.text ? (
+                  <div className="text-pink-400 font-bold text-xl">{e.text}</div>
+                ) : (
+                  <>
+                    <div className="text-2xl">✨</div>
+                    <div className="text-yellow-300 text-sm">+{e.points}</div>
+                  </>
+                )}
+              </div>
+            ))}
+
+            {/* Pet watching */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-4xl">
+              {pet.emoji}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Mini-Game Hub (Updated for 2x2 grid - WEB-080)
+    const MiniGameHub = ({ state, onSelectGame, onBack }) => {
+      const petState = state.petStates[state.activePetId];
+      const pet = state.activePetId ? PETS[state.activePetId] : null;
+
+      const games = [
+        {
+          id: 'snack_catch', name: 'Snack Catch', emoji: '🍎',
+          desc: 'Catch falling food!', unlockLevel: 1,
+          abilityPet: 'fizz', abilityDesc: '+25% rewards'
+        },
+        {
+          id: 'memory_match', name: 'Memory Match', emoji: '🧠',
+          desc: 'Find matching pairs!', unlockLevel: 1,
+          abilityPet: 'whisp', abilityDesc: 'Peek at start'
+        },
+        {
+          id: 'rhythm_tap', name: 'Rhythm Tap', emoji: '🎵',
+          desc: 'Tap to the beat!', unlockLevel: 3,
+          abilityPet: 'plompo', abilityDesc: 'Slower notes'
+        },
+        {
+          id: 'poop_scoop', name: 'Poop Scoop', emoji: '🧹',
+          desc: 'Clean up fast!', unlockLevel: 5,
+          abilityPet: 'grib', abilityDesc: 'Poop magnet'
+        },
+      ];
+
+      return (
+        <div className="h-full bg-gradient-to-b from-indigo-900 to-purple-900 flex flex-col">
+          <div className="p-4 flex items-center gap-4">
+            <button onClick={onBack} className="glass rounded-full p-2 text-white">
+              <span className="text-xl">←</span>
+            </button>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              🎮 Mini-Games
+            </h2>
+          </div>
+
+          {/* 2x2 Grid */}
+          <div className="flex-1 p-4 grid grid-cols-2 gap-4 content-start">
+            {games.map(game => {
+              const isUnlocked = petState && petState.level >= game.unlockLevel;
+              const hasAbility = pet && pet.id === game.abilityPet;
+              return (
+                <button
+                  key={game.id}
+                  onClick={() => isUnlocked && onSelectGame(game.id)}
+                  disabled={!isUnlocked}
+                  className={`glass rounded-2xl p-4 flex flex-col items-center gap-2 transition relative
+                    ${isUnlocked ? 'hover:bg-white/20 hover:scale-105' : 'opacity-50'}`}
+                >
+                  {/* Ability indicator */}
+                  {hasAbility && isUnlocked && (
+                    <div className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs px-2 py-0.5 rounded-full font-bold">
+                      ⭐
+                    </div>
+                  )}
+
+                  <span className="text-4xl">{game.emoji}</span>
+                  <div className="text-white font-bold text-sm">{game.name}</div>
+                  <div className="text-white/60 text-xs">{game.desc}</div>
+
+                  {!isUnlocked ? (
+                    <div className="text-yellow-400 text-xs mt-1">🔒 Lv.{game.unlockLevel}</div>
+                  ) : hasAbility ? (
+                    <div className="text-yellow-300 text-xs mt-1">{game.abilityDesc}</div>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Energy cost notice */}
+          <div className="p-4 text-center text-white/50 text-sm">
+            Each game costs 10 energy
+          </div>
+        </div>
+      );
+    };
+
+    // Settings Screen (Section 10)
+    const SettingsScreen = ({ state, update, onBack }) => {
+      const [soundEnabled, setSoundEnabled] = useState(AudioManager.soundEnabled);
+      const [musicEnabled, setMusicEnabled] = useState(AudioManager.musicEnabled);
+      const [vibrationEnabled, setVibrationEnabled] = useState(VibrationManager.enabled);
+      const [masterVolume, setMasterVolume] = useState(AudioManager.masterVolume);
+      const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+      const handleResetProgress = () => {
+        localStorage.removeItem(STORAGE_KEY);
+        window.location.reload();
+      };
+
+      const handleSoundToggle = () => {
+        const newState = AudioManager.toggleSound();
+        setSoundEnabled(newState);
+        if (newState) AudioManager.playSfx('tap');
+      };
+
+      const handleMusicToggle = () => {
+        const newState = AudioManager.toggleMusic();
+        setMusicEnabled(newState);
+      };
+
+      const handleVibrationToggle = () => {
+        const newState = VibrationManager.toggle();
+        setVibrationEnabled(newState);
+        if (newState) VibrationManager.vibratePreset('tap');
+      };
+
+      const handleVolumeChange = (val) => {
+        setMasterVolume(val);
+        AudioManager.setMasterVolume(val);
+      };
+
+      return (
+        <div className="h-full bg-gradient-to-b from-slate-900 to-gray-900 flex flex-col">
+          <div className="p-4 flex items-center gap-4 border-b border-white/10">
+            <button onClick={onBack} className="glass rounded-full p-2 text-white">
+              <span className="text-xl">←</span>
+            </button>
+            <h2 className="text-xl font-bold text-white">⚙️ Settings</h2>
+          </div>
+
+          <div className="flex-1 p-6 space-y-4 overflow-auto">
+            {/* Sound Settings - Phase 4 */}
+            <div className="glass rounded-xl p-4">
+              <h3 className="text-white font-bold mb-4">🔊 Sound & Haptics</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-white">Sound Effects</span>
+                  <button
+                    onClick={handleSoundToggle}
+                    className={`w-14 h-8 rounded-full transition-colors ${soundEnabled ? 'bg-green-500' : 'bg-gray-600'}`}
+                  >
+                    <div className={`w-6 h-6 bg-white rounded-full mx-1 transition-transform ${soundEnabled ? 'translate-x-6' : ''}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white">Background Music</span>
+                  <button
+                    onClick={handleMusicToggle}
+                    className={`w-14 h-8 rounded-full transition-colors ${musicEnabled ? 'bg-green-500' : 'bg-gray-600'}`}
+                  >
+                    <div className={`w-6 h-6 bg-white rounded-full mx-1 transition-transform ${musicEnabled ? 'translate-x-6' : ''}`} />
+                  </button>
+                </div>
+                {VibrationManager.supportsVibration && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-white">📳 Vibration</span>
+                    <button
+                      onClick={handleVibrationToggle}
+                      className={`w-14 h-8 rounded-full transition-colors ${vibrationEnabled ? 'bg-green-500' : 'bg-gray-600'}`}
+                    >
+                      <div className={`w-6 h-6 bg-white rounded-full mx-1 transition-transform ${vibrationEnabled ? 'translate-x-6' : ''}`} />
+                    </button>
+                  </div>
+                )}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white/70 text-sm">Master Volume</span>
+                    <span className="text-white/50 text-sm">{Math.round(masterVolume * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={masterVolume}
+                    onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Game Stats */}
+            <div className="glass rounded-xl p-4">
+              <h3 className="text-white font-bold mb-4">📊 Game Stats</h3>
+              <div className="space-y-2 text-white/80 text-sm">
+                <div className="flex justify-between">
+                  <span>Total Pets Unlocked:</span>
+                  <span>{Object.values(state.petUnlocks).filter(Boolean).length} / {Object.keys(PETS).length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Current Coins:</span>
+                  <span>🪙 {state.coins}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Current Gems:</span>
+                  <span>💎 {state.gems}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="glass rounded-xl p-4 border border-red-500/30">
+              <h3 className="text-red-400 font-bold mb-4">⚠️ Danger Zone</h3>
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="w-full py-3 bg-red-600/30 hover:bg-red-600/50 text-red-400 rounded-lg transition-colors"
+              >
+                Reset All Progress
+              </button>
+              <p className="text-red-400/60 text-xs mt-2">This will delete all your pets, items, and progress!</p>
+            </div>
+          </div>
+
+          {/* About */}
+          <div className="p-4 text-center text-white/30 text-xs">
+            Grundy v1.0 - Web Prototype<br/>
+            Made with ❤️
+          </div>
+
+          {/* Reset Confirmation Modal */}
+          {showResetConfirm && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6">
+              <div className="bg-gray-800 rounded-2xl p-6 max-w-sm w-full">
+                <div className="text-4xl text-center mb-4">⚠️</div>
+                <h3 className="text-xl font-bold text-white text-center mb-2">Reset All Progress?</h3>
+                <p className="text-white/70 text-center mb-6">
+                  This will permanently delete:<br/>
+                  • All your pets<br/>
+                  • All your coins and gems<br/>
+                  • All your items<br/>
+                  This cannot be undone!
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 py-3 glass rounded-xl text-white font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleResetProgress}
+                    className="flex-1 py-3 bg-red-600 rounded-xl text-white font-bold"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ============================================================
+    // DEV PANEL (Section 8)
+    // ============================================================
+
+    const DevPanel = ({ state, update, onClose }) => {
+      const [expandedSections, setExpandedSections] = useState({ stats: true, economy: false, unlocks: false, reset: false });
+
+      const toggleSection = (section) => {
+        setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+      };
+
+      const petState = state.activePetId ? state.petStates[state.activePetId] : null;
+
+      const updatePetStat = (key, value) => {
+        if (!state.activePetId || !petState) return;
+        const newPetState = { ...petState, [key]: value };
+        // Update stage if level changed
+        if (key === 'level') {
+          newPetState.stage = value <= 6 ? 'baby' : value <= 12 ? 'youth' : 'evolved';
+        }
+        update({ petStates: { ...state.petStates, [state.activePetId]: newPetState } });
+      };
+
+      const adjustCurrency = (type, amount) => {
+        if (type === 'coins') {
+          update({ coins: Math.max(0, state.coins + amount) });
+        } else {
+          update({ gems: Math.max(0, state.gems + amount) });
+        }
+      };
+
+      const fillInventory = () => {
+        const fullInventory = {};
+        Object.keys(FOODS).forEach(id => { fullInventory[id] = 99; });
+        update({ inventory: fullInventory });
+      };
+
+      const unlockAllPets = () => {
+        const allUnlocked = {};
+        Object.keys(PETS).forEach(id => { allUnlocked[id] = true; });
+        update({ unlockedPets: allUnlocked });
+      };
+
+      const lockNonStarters = () => {
+        const startersOnly = {};
+        Object.keys(PETS).forEach(id => { startersOnly[id] = PETS[id].isStarter; });
+        update({ unlockedPets: startersOnly });
+      };
+
+      const resetCurrentPet = () => {
+        if (!state.activePetId) return;
+        const resetPet = createDefaultPetState(state.activePetId);
+        update({ petStates: { ...state.petStates, [state.activePetId]: resetPet } });
+      };
+
+      const resetAllProgress = () => {
+        if (confirm('⚠️ This will DELETE ALL progress!\n\nAre you sure you want to reset everything?')) {
+          localStorage.removeItem(STORAGE_KEY);
+          window.location.reload();
+        }
+      };
+
+      const Section = ({ id, title, icon, children }) => (
+        <div className="border-b border-yellow-500/30">
+          <button
+            onClick={() => toggleSection(id)}
+            className="w-full p-3 flex items-center justify-between text-left hover:bg-yellow-500/10"
+          >
+            <span className="text-yellow-400 font-bold">{icon} {title}</span>
+            <span className="text-yellow-400">{expandedSections[id] ? '▼' : '▶'}</span>
+          </button>
+          {expandedSections[id] && <div className="p-3 pt-0 space-y-3">{children}</div>}
+        </div>
+      );
+
+      const Slider = ({ label, value, min, max, onChange }) => (
+        <div>
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-white/70">{label}</span>
+            <span className="text-yellow-400 font-mono">{value}</span>
+          </div>
+          <input
+            type="range" min={min} max={max} value={value}
+            onChange={(e) => onChange(parseInt(e.target.value))}
+            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+          />
+        </div>
+      );
+
+      const ButtonGroup = ({ label, buttons }) => (
+        <div>
+          <div className="text-white/70 text-sm mb-1">{label}</div>
+          <div className="flex gap-1">
+            {buttons.map((btn, i) => (
+              <button
+                key={i}
+                onClick={btn.onClick}
+                className={`flex-1 py-1 px-2 rounded text-xs font-bold transition ${btn.color || 'bg-gray-700 hover:bg-gray-600 text-white'}`}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="fixed top-0 right-0 w-80 h-full bg-gray-900/95 border-l-2 border-yellow-500 z-50 overflow-y-auto">
+          {/* Header */}
+          <div className="sticky top-0 bg-gray-900 p-3 border-b border-yellow-500 flex items-center justify-between">
+            <span className="text-yellow-400 font-bold text-lg">🛠️ Dev Panel</span>
+            <button onClick={onClose} className="text-white/50 hover:text-white text-xl">✕</button>
+          </div>
+
+          {/* Pet Stats Section */}
+          <Section id="stats" title="Pet Stats" icon="📊">
+            {petState ? (
+              <>
+                <div className="text-white/50 text-xs mb-2">Active: {PETS[state.activePetId]?.name || 'None'}</div>
+                <Slider label="Level" value={petState.level} min={1} max={30} onChange={(v) => updatePetStat('level', v)} />
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-white/70">XP</span>
+                    <span className="text-yellow-400 font-mono">{petState.xp}</span>
+                  </div>
+                  <input
+                    type="number" min={0} value={petState.xp}
+                    onChange={(e) => updatePetStat('xp', Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full p-2 bg-gray-700 rounded text-white text-sm"
+                  />
+                </div>
+                <Slider label="Mood" value={petState.mood} min={0} max={100} onChange={(v) => updatePetStat('mood', v)} />
+                <Slider label="Hunger" value={petState.hunger} min={0} max={100} onChange={(v) => updatePetStat('hunger', v)} />
+                <Slider label="Bond" value={petState.bond} min={0} max={100} onChange={(v) => updatePetStat('bond', v)} />
+              </>
+            ) : (
+              <div className="text-white/50 text-sm">No active pet</div>
+            )}
+          </Section>
+
+          {/* Economy Section */}
+          <Section id="economy" title="Economy" icon="💰">
+            <ButtonGroup
+              label={`Coins: ${state.coins}`}
+              buttons={[
+                { label: '-100', onClick: () => adjustCurrency('coins', -100), color: 'bg-red-700 hover:bg-red-600 text-white' },
+                { label: '-10', onClick: () => adjustCurrency('coins', -10), color: 'bg-red-600 hover:bg-red-500 text-white' },
+                { label: '+10', onClick: () => adjustCurrency('coins', 10), color: 'bg-green-600 hover:bg-green-500 text-white' },
+                { label: '+100', onClick: () => adjustCurrency('coins', 100), color: 'bg-green-700 hover:bg-green-600 text-white' },
+              ]}
+            />
+            <ButtonGroup
+              label={`Gems: ${state.gems}`}
+              buttons={[
+                { label: '-100', onClick: () => adjustCurrency('gems', -100), color: 'bg-red-700 hover:bg-red-600 text-white' },
+                { label: '-10', onClick: () => adjustCurrency('gems', -10), color: 'bg-red-600 hover:bg-red-500 text-white' },
+                { label: '+10', onClick: () => adjustCurrency('gems', 10), color: 'bg-green-600 hover:bg-green-500 text-white' },
+                { label: '+100', onClick: () => adjustCurrency('gems', 100), color: 'bg-green-700 hover:bg-green-600 text-white' },
+              ]}
+            />
+            <button
+              onClick={fillInventory}
+              className="w-full py-2 bg-purple-600 hover:bg-purple-500 rounded text-white font-bold text-sm"
+            >
+              🍎 Fill All Food (99 each)
+            </button>
+          </Section>
+
+          {/* Unlocks Section */}
+          <Section id="unlocks" title="Unlocks" icon="🔓">
+            <button
+              onClick={unlockAllPets}
+              className="w-full py-2 bg-green-600 hover:bg-green-500 rounded text-white font-bold text-sm mb-2"
+            >
+              🐾 Unlock All Pets
+            </button>
+            <button
+              onClick={lockNonStarters}
+              className="w-full py-2 bg-orange-600 hover:bg-orange-500 rounded text-white font-bold text-sm"
+            >
+              🔒 Lock Non-Starters
+            </button>
+            <div className="mt-2 text-xs text-white/50">
+              Unlocked: {Object.values(state.unlockedPets).filter(Boolean).length} / {Object.keys(PETS).length}
+            </div>
+          </Section>
+
+          {/* Reset Section */}
+          <Section id="reset" title="Reset" icon="⚠️">
+            <button
+              onClick={resetCurrentPet}
+              className="w-full py-2 bg-orange-600 hover:bg-orange-500 rounded text-white font-bold text-sm mb-2"
+            >
+              🔄 Reset Current Pet to Lv.1
+            </button>
+            <button
+              onClick={resetAllProgress}
+              className="w-full py-2 bg-red-700 hover:bg-red-600 rounded text-white font-bold text-sm"
+            >
+              💥 RESET ALL PROGRESS
+            </button>
+            <div className="mt-2 text-xs text-red-400">
+              Warning: Full reset cannot be undone!
+            </div>
+          </Section>
+
+          {/* Quick Info */}
+          <div className="p-3 text-xs text-white/30">
+            <div>Press Ctrl+Shift+D to toggle</div>
+            <div>Screen: {state.screen}</div>
+            <div>First Session: {state.isFirstSession ? 'Yes' : 'No'}</div>
+          </div>
+        </div>
+      );
+    };
+
+    // ============================================================
+    // MAIN APP
+    // ============================================================
+
+    const App = () => {
+      const [state, update] = useGameState();
+      const [storyIndex, setStoryIndex] = useState(0);
+      const [gemCollected, setGemCollected] = useState(null);
+      const [unlockedPet, setUnlockedPet] = useState(null);
+      const [devMode, setDevMode] = useState(false);
+
+      // Keyboard shortcut for dev panel (Ctrl+Shift+D)
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+            e.preventDefault();
+            setDevMode(prev => !prev);
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, []);
+
+      // Check if returning player
+      useEffect(() => {
+        if (!state.isFirstSession && state.activePetId && state.screen === 'splash') {
+          update({ screen: 'main_menu' });
+        }
+      }, []);
+
+      // Phase 2: Check login streak and daily event
+      useEffect(() => {
+        if (!state.activePetId) return;
+
+        const today = new Date().toDateString();
+
+        // Check if new day for login streak
+        if (isNewDay(state.lastLoginDate)) {
+          const newStreak = isConsecutiveDay(state.lastLoginDate)
+            ? state.loginStreak + 1
+            : 1;
+
+          // Pick new daily event if date changed
+          const newEvent = state.dailyEventDate !== today
+            ? getRandomEvent()
+            : state.dailyEvent;
+
+          update({
+            loginStreak: newStreak,
+            lastLoginDate: Date.now(),
+            streakRewardClaimed: false,
+            dailyEvent: newEvent,
+            dailyEventDate: today
+          });
+        }
+      }, [state.activePetId]);
+
+      // Streak reward claim function
+      const claimStreakReward = () => {
+        if (state.streakRewardClaimed) return;
+
+        const reward = getStreakReward(state.loginStreak);
+        let newCoins = state.coins + (reward.coins || 0);
+        let newGems = state.gems + (reward.gems || 0);
+        let newInventory = { ...state.inventory };
+
+        if (reward.item) {
+          newInventory[reward.item] = (newInventory[reward.item] || 0) + 1;
+        }
+
+        update({
+          coins: newCoins,
+          gems: newGems,
+          inventory: newInventory,
+          streakRewardClaimed: true
+        });
+      };
+
+      // Phase 2: Poop generation timer
+      useEffect(() => {
+        if (!state.activePetId || !state.gameMode) return;
+
+        const interval = POOP_CONFIG.getInterval(state.gameMode) * 60 * 1000; // Convert to ms
+
+        const timer = setInterval(() => {
+          const petState = state.petStates[state.activePetId];
+          if (!petState) return;
+
+          const timeSinceLastPoop = Date.now() - (petState.lastPoopTime || Date.now());
+          if (timeSinceLastPoop >= interval) {
+            const newPetState = {
+              ...petState,
+              poopCount: (petState.poopCount || 0) + 1,
+              lastPoopTime: Date.now()
+            };
+
+            // Apply penalties if too many poops
+            if (newPetState.poopCount > POOP_CONFIG.maxBeforePenalty) {
+              newPetState.mood = Math.max(0, newPetState.mood + POOP_CONFIG.moodPenaltyPerPoop);
+              newPetState.happiness = Math.max(0, (newPetState.happiness || 70) + POOP_CONFIG.happinessPenaltyPerPoop);
+              newPetState.cleanlinessScore = Math.max(0, (newPetState.cleanlinessScore || 100) - 15);
+            }
+
+            update({
+              petStates: { ...state.petStates, [state.activePetId]: newPetState }
+            });
+          }
+        }, 60000); // Check every minute
+
+        return () => clearInterval(timer);
+      }, [state.activePetId, state.gameMode]);
+
+      // Phase 3: Sickness check (Classic mode only)
+      useEffect(() => {
+        if (!state.activePetId || state.gameMode !== 'classic') return;
+
+        const timer = setInterval(() => {
+          const petState = state.petStates[state.activePetId];
+          if (!petState || petState.isSick || petState.isDead || petState.hasVitaminProtection) return;
+
+          // Check for sickness triggers
+          let shouldGetSick = false;
+          let careMistakeAdded = false;
+
+          // Hunger low trigger
+          if (petState.hunger < 20) {
+            if (Math.random() < SICKNESS_CONFIG.baseChancePerNeglect) {
+              shouldGetSick = true;
+            }
+            if (!careMistakeAdded) {
+              careMistakeAdded = true;
+            }
+          }
+
+          // Cleanliness low trigger
+          if ((petState.cleanlinessScore || 100) < 40) {
+            if (Math.random() < SICKNESS_CONFIG.baseChancePerNeglect) {
+              shouldGetSick = true;
+            }
+          }
+
+          // Poop excess trigger
+          if ((petState.poopCount || 0) >= 4) {
+            if (Math.random() < SICKNESS_CONFIG.baseChancePerNeglect) {
+              shouldGetSick = true;
+            }
+          }
+
+          if (shouldGetSick) {
+            const newPetState = {
+              ...petState,
+              isSick: true,
+              sicknessStartTime: Date.now(),
+              careMistakes: (petState.careMistakes || 0) + 1
+            };
+            update({
+              petStates: { ...state.petStates, [state.activePetId]: newPetState }
+            });
+          }
+        }, 30000); // Check every 30 seconds
+
+        return () => clearInterval(timer);
+      }, [state.activePetId, state.gameMode]);
+
+      // Phase 3: Death check (Classic mode only)
+      const [showDeathModal, setShowDeathModal] = useState(false);
+      const [deathCause, setDeathCause] = useState(null);
+
+      useEffect(() => {
+        if (!state.activePetId || state.gameMode !== 'classic') return;
+
+        const petState = state.petStates[state.activePetId];
+        if (!petState || petState.isDead) return;
+
+        // Check death conditions
+        for (const cause of DEATH_CONFIG.causes) {
+          if (cause.condition(petState)) {
+            setDeathCause(cause.type);
+            setShowDeathModal(true);
+            update({
+              petStates: {
+                ...state.petStates,
+                [state.activePetId]: { ...petState, isDead: true, deathTime: Date.now() }
+              }
+            });
+            break;
+          }
+        }
+      }, [state.petStates[state.activePetId]?.hunger, state.petStates[state.activePetId]?.careMistakes, state.petStates[state.activePetId]?.isSick]);
+
+      // Phase 3: Notification state
+      const [notification, setNotification] = useState(null);
+
+      // Check for notifications
+      useEffect(() => {
+        if (!state.activePetId) return;
+        const petState = state.petStates[state.activePetId];
+        if (!petState) return;
+
+        if (petState.hunger < 20 && !notification) {
+          setNotification({ type: 'hunger_critical' });
+        } else if (petState.hunger < 40 && !notification) {
+          setNotification({ type: 'hunger_warning' });
+        } else if (petState.isSick && !notification) {
+          setNotification({ type: 'sick' });
+        } else if ((petState.poopCount || 0) >= 3 && !notification) {
+          setNotification({ type: 'poop_warning' });
+        }
+      }, [state.petStates[state.activePetId]]);
+
+      const canCollectGems = () => {
+        if (!state.lastGemCollect) return true;
+        const hours = (Date.now() - state.lastGemCollect) / (1000 * 60 * 60);
+        return hours >= 24;
+      };
+
+      const collectGems = () => {
+        const unlockedCount = Object.values(state.unlockedPets).filter(Boolean).length;
+        const totalLevels = Object.values(state.petStates).reduce((s, p) => s + (p?.level || 0), 0);
+        const income = BASE_DAILY_GEMS + unlockedCount + Math.floor(totalLevels * 0.1);
+
+        update({
+          gems: state.gems + income,
+          totalGemsEarned: state.totalGemsEarned + income,
+          lastGemCollect: Date.now(),
+        });
+        setGemCollected(income);
+      };
+
+      const handleScreenChange = (screen) => update({ screen });
+
+      // Render based on current screen
+      const renderScreen = () => {
+        switch (state.screen) {
+          case 'splash':
+            return <SplashScreen onStart={() => update({ screen: state.isFirstSession ? 'story' : 'main_menu' })} />;
+
+          case 'story':
+            return (
+              <StoryScreen
+                screenIndex={storyIndex}
+                onNext={() => {
+                  if (storyIndex < STORY_SCREENS.length - 1) {
+                    setStoryIndex(storyIndex + 1);
+                  } else {
+                    update({ screen: 'pet_pick' });
+                  }
+                }}
+                onSkip={() => update({ screen: 'pet_pick' })}
+              />
+            );
+
+          case 'pet_pick':
+            return (
+              <PetPickScreen
+                onSelect={(petId) => {
+                  const newPetState = createDefaultPetState(petId);
+                  update({
+                    activePetId: petId,
+                    petStates: { [petId]: newPetState },
+                    isFirstSession: false,
+                    screen: 'tutorial',
+                  });
+                }}
+              />
+            );
+
+          case 'tutorial':
+            return (
+              <TutorialScreen
+                step={state.tutorialStep}
+                petState={state.petStates[state.activePetId]}
+                pet={PETS[state.activePetId]}
+                inventory={state.inventory}
+                onAction={() => {
+                  const nextStep = state.tutorialStep + 1;
+                  if (nextStep >= TUTORIAL_STEPS.length) {
+                    // After tutorial, go to mode selection if not set
+                    update({
+                      tutorialCompleted: true,
+                      tutorialStep: 0,
+                      screen: state.gameMode ? 'pet_care' : 'mode_select'
+                    });
+                  } else {
+                    update({ tutorialStep: nextStep });
+                  }
+                }}
+                onSkip={() => update({
+                  tutorialCompleted: true,
+                  tutorialStep: 0,
+                  screen: state.gameMode ? 'pet_care' : 'mode_select'
+                })}
+              />
+            );
+
+          case 'mode_select':
+            return (
+              <ModeSelectScreen
+                onSelect={(mode) => {
+                  update({
+                    gameMode: mode,
+                    modeSelectedAt: Date.now(),
+                    screen: 'pet_care'
+                  });
+                }}
+              />
+            );
+
+          case 'main_menu':
+            return (
+              <MainMenu
+                petState={state.petStates[state.activePetId]}
+                pet={PETS[state.activePetId]}
+                coins={state.coins}
+                gems={state.gems}
+                canCollect={canCollectGems()}
+                onPlay={() => handleScreenChange('pet_care')}
+                onPets={() => handleScreenChange('pet_selector')}
+                onShop={() => handleScreenChange('shop')}
+                onGames={() => handleScreenChange('mini_games')}
+                onSettings={() => handleScreenChange('settings')}
+                onCollectGems={collectGems}
+                loginStreak={state.loginStreak || 0}
+                streakReward={state.loginStreak > 0 ? getStreakReward(state.loginStreak) : null}
+                streakClaimed={state.streakRewardClaimed}
+                onClaimStreak={claimStreakReward}
+                dailyEvent={state.dailyEvent}
+              />
+            );
+
+          case 'pet_care':
+            return (
+              <PetCareScreen
+                state={state}
+                update={update}
+                onBack={() => handleScreenChange('main_menu')}
+              />
+            );
+
+          case 'pet_selector':
+            return (
+              <PetSelectorScreen
+                state={state}
+                update={update}
+                onBack={() => handleScreenChange('main_menu')}
+                onUnlock={(pet) => setUnlockedPet(pet)}
+              />
+            );
+
+          case 'shop':
+            return (
+              <ShopScreen
+                state={state}
+                update={update}
+                onBack={() => handleScreenChange('main_menu')}
+              />
+            );
+
+          case 'settings':
+            return (
+              <SettingsScreen
+                state={state}
+                update={update}
+                onBack={() => handleScreenChange('main_menu')}
+              />
+            );
+
+          case 'mini_games':
+            return (
+              <MiniGameHub
+                state={state}
+                onSelectGame={(gameId) => handleScreenChange(gameId)}
+                onBack={() => handleScreenChange('main_menu')}
+              />
+            );
+
+          case 'snack_catch':
+            return (
+              <SnackCatchGame
+                pet={PETS[state.activePetId]}
+                onComplete={(rewards) => {
+                  const petState = state.petStates[state.activePetId];
+                  const newXp = petState.xp + rewards.xp;
+                  const xpNeeded = xpForLevel(petState.level);
+
+                  if (newXp >= xpNeeded) {
+                    const newLevel = petState.level + 1;
+                    update({
+                      coins: state.coins + rewards.coins,
+                      petStates: {
+                        ...state.petStates,
+                        [state.activePetId]: {
+                          ...petState,
+                          xp: newXp - xpNeeded,
+                          level: newLevel,
+                          stage: getGrowthStage(newLevel)
+                        }
+                      },
+                      screen: 'mini_games'
+                    });
+                  } else {
+                    update({
+                      coins: state.coins + rewards.coins,
+                      petStates: {
+                        ...state.petStates,
+                        [state.activePetId]: {
+                          ...petState,
+                          xp: newXp
+                        }
+                      },
+                      screen: 'mini_games'
+                    });
+                  }
+                }}
+                onBack={() => handleScreenChange('mini_games')}
+              />
+            );
+
+          case 'memory_match':
+            return (
+              <MemoryMatchGame
+                pet={PETS[state.activePetId]}
+                onComplete={(rewards) => {
+                  update({
+                    coins: state.coins + (rewards.coins || 0),
+                    gems: state.gems + (rewards.gems || 0),
+                    screen: 'mini_games'
+                  });
+                }}
+                onBack={() => handleScreenChange('mini_games')}
+              />
+            );
+
+          case 'rhythm_tap':
+            return (
+              <RhythmTapGame
+                pet={PETS[state.activePetId]}
+                onComplete={(rewards) => {
+                  update({
+                    coins: state.coins + (rewards.coins || 0),
+                    gems: state.gems + (rewards.gems || 0),
+                    screen: 'mini_games'
+                  });
+                }}
+                onBack={() => handleScreenChange('mini_games')}
+              />
+            );
+
+          case 'poop_scoop':
+            return (
+              <PoopScoopGame
+                pet={PETS[state.activePetId]}
+                onComplete={(rewards) => {
+                  update({
+                    coins: state.coins + (rewards.coins || 0),
+                    gems: state.gems + (rewards.gems || 0),
+                    screen: 'mini_games'
+                  });
+                }}
+                onBack={() => handleScreenChange('mini_games')}
+              />
+            );
+
+          default:
+            return <SplashScreen onStart={() => handleScreenChange('main_menu')} />;
+        }
+      };
+
+      return (
+        <div className="game-container">
+          {renderScreen()}
+
+          {/* Dev Panel Toggle Button */}
+          <button
+            onClick={() => setDevMode(prev => !prev)}
+            className="fixed bottom-4 right-4 w-12 h-12 bg-yellow-500 hover:bg-yellow-400 rounded-full flex items-center justify-center text-2xl shadow-lg z-40 transition-transform hover:scale-110"
+            title="Toggle Dev Panel (Ctrl+Shift+D)"
+          >
+            🛠️
+          </button>
+
+          {/* Dev Panel */}
+          {devMode && <DevPanel state={state} update={update} onClose={() => setDevMode(false)} />}
+
+          {/* Gem collected modal */}
+          {gemCollected && <GemIncomeModal amount={gemCollected} onClose={() => setGemCollected(null)} />}
+
+          {/* Pet unlocked modal */}
+          {unlockedPet && <PetUnlockModal pet={unlockedPet} onClose={() => setUnlockedPet(null)} />}
+
+          {/* Phase 3: Death Modal */}
+          {showDeathModal && state.activePetId && (
+            <DeathModal
+              pet={PETS[state.activePetId]}
+              cause={deathCause}
+              onReset={() => {
+                const newPetState = createDefaultPetState(state.activePetId);
+                update({
+                  petStates: { ...state.petStates, [state.activePetId]: newPetState }
+                });
+                setShowDeathModal(false);
+                setDeathCause(null);
+              }}
+              onClose={() => {
+                setShowDeathModal(false);
+                update({ screen: 'main_menu' });
+              }}
+            />
+          )}
+
+          {/* Phase 3: Notification Toast */}
+          <NotificationToast
+            notification={notification}
+            onDismiss={() => setNotification(null)}
+          />
+
+          {/* Phase 6A: PWA Install Prompt */}
+          <InstallPromptBanner />
+        </div>
+      );
+    };
+
+    // Render
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    // PWA Install Prompt Handler
+    window.deferredInstallPrompt = null;
+    window.isPWAInstalled = false;
+
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      window.isPWAInstalled = true;
+    }
+
+    // Capture install prompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window.deferredInstallPrompt = e;
+      console.log('[PWA] Install prompt captured');
+      // Dispatch custom event for React to catch
+      window.dispatchEvent(new CustomEvent('pwa-install-available'));
+    });
+
+    // Track installation
+    window.addEventListener('appinstalled', () => {
+      window.isPWAInstalled = true;
+      window.deferredInstallPrompt = null;
+      console.log('[PWA] App installed successfully');
+      window.dispatchEvent(new CustomEvent('pwa-installed'));
+    });
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const registration = await navigator.serviceWorker.register('./service-worker.js');
+          console.log('[SW] Service Worker registered:', registration.scope);
+
+          // Check for updates
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            console.log('[SW] New service worker installing...');
+
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[SW] New version available! Refresh to update.');
+                // Could show update notification here
+              }
+            });
+          });
+        } catch (error) {
+          console.log('[SW] Service Worker registration failed:', error);
+        }
+      });
+    }
+
+    // Helper function for React to trigger install
+    window.triggerPWAInstall = async () => {
+      if (!window.deferredInstallPrompt) return false;
+      window.deferredInstallPrompt.prompt();
+      const { outcome } = await window.deferredInstallPrompt.userChoice;
+      console.log('[PWA] User choice:', outcome);
+      window.deferredInstallPrompt = null;
+      return outcome === 'accepted';
+    };
+  </script>
+</body>
+</html>
