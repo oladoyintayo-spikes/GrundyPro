@@ -2,7 +2,7 @@
   "name": "Grundy - Virtual Pet Adventure",
   "short_name": "Grundy",
   "description": "Adopt and care for your very own virtual pet!",
-  "start_url": "./grundy-game.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

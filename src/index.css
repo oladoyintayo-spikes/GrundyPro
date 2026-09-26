@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: #090d16;
+  color: #f1f5f9;
+}
+
+@keyframes idle-bob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes happy-bounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-16px) rotate(-6deg);
+  }
+  75% {
+    transform: translateY(-16px) rotate(6deg);
+  }
+}
+
+@keyframes sad-droop {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+@keyframes hungry-wobble {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(-4deg);
+  }
+  75% {
+    transform: translateY(-4px) rotate(4deg);
+  }
+}
+
+@keyframes sick-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-3px);
+  }
+  40%, 80% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes eating {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.18);
+  }
+  40% {
+    transform: scale(0.95);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes sleeping {
+  0%, 100% {
+    transform: translateY(0) scale(0.98);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(4px) scale(0.95);
+    opacity: 0.7;
+  }
+}
+
+@keyframes float-heart {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(0.8);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -60px) scale(1.3);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translate(-50%, -100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.animate-idle {
+  animation: idle-bob 2.8s ease-in-out infinite;
+}
+
+.animate-happy {
+  animation: happy-bounce 0.9s ease-in-out infinite;
+}
+
+.animate-sad {
+  animation: sad-droop 2.2s ease-in-out infinite;
+}
+
+.animate-hungry {
+  animation: hungry-wobble 0.6s ease-in-out infinite;
+}
+
+.animate-sick {
+  animation: sick-shake 0.8s ease-in-out infinite;
+}
+
+.animate-eating {
+  animation: eating 0.7s ease-out;
+}
+
+.animate-sleeping {
+  animation: sleeping 3s ease-in-out infinite;
+}
+
+.animate-float-heart {
+  animation: float-heart 1.1s ease-out forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.35s ease-out;
+}
